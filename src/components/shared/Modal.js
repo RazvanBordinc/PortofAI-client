@@ -40,6 +40,7 @@ export default function Modal({
         <>
           {/* Backdrop */}
           <motion.div
+            type="button"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -128,6 +129,7 @@ export default function Modal({
               }`}
             >
               <button
+                type="button"
                 onClick={onClose}
                 className={`py-2 px-4 rounded-md font-medium text-sm
                   ${

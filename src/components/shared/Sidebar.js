@@ -14,7 +14,7 @@ import {
   Info,
   Plus,
 } from "lucide-react";
-import { useTheme } from "@/lib/utils/ThemeContext";
+import { useTheme } from "@/lib/utils/context/ThemeContext";
 import Modal from "./Modal";
 
 export default function Sidebar({ children }) {

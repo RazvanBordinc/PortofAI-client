@@ -2,7 +2,7 @@
 
 import Sidebar from "@/components/shared/Sidebar";
 import "./globals.css";
-import { ThemeProvider } from "@/lib/utils/ThemeContext";
+import { ThemeProvider } from "@/lib/utils/context/ThemeContext";
 
 export const metadata = {
   title: "Create Next App",

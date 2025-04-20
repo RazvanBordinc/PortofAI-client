@@ -299,11 +299,6 @@ export default function InfoPage() {
             ))}
           </div>
         </motion.div>
-
-        {/* Footer */}
-        <div className="text-center mt-8 text-slate-600 dark:text-slate-400 text-sm">
-          <p>© 2025 PortofAI • Designed & Developed with ❤️</p>
-        </div>
       </div>
     </div>
   );

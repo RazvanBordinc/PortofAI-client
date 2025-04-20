@@ -77,7 +77,7 @@ export default function ChatSuggestion({ onSelectSuggestion, distance }) {
               onClick={() => handleSuggestionClick(suggestion.text)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
                 text-black dark:text-white shadow-sm transition-all duration-300
-                border border-white/10 dark:border-slate-700/30 hover:shadow-md curosr-pointer`}
+                border border-white/20 dark:border-slate-700/50 hover:shadow-md cursor-pointer`}
             >
               <span className="opacity-70">{suggestion.icon}</span>
               <span>{suggestion.text}</span>

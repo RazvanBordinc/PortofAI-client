@@ -1,18 +1,24 @@
 "use client";
 
-import React from "react";
-import { Bot, User } from "lucide-react";
+import React, { useEffect } from "react";
+import LogoSvg from "../shared/LogoSvg";
 
 export default function ChatBubble({ message }) {
-  const isUser = message.sender === "user";
-
+  useEffect(() => {
+    const isAI = message.sender !== "user";
+    if (isAI) {
+      if (message === "contact") {
+        // Handle table response format
+      }
+    }
+  }, [message]);
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       {/* Avatar for AI - only shown for AI messages */}
       {!isUser && (
         <div className="self-end mb-2 mr-2">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-500/10 dark:bg-indigo-600/20">
-            <Bot size={16} className="text-indigo-600 dark:text-indigo-400" />
+            <LogoSvg design="size-16" />
           </div>
         </div>
       )}
@@ -32,15 +38,6 @@ export default function ChatBubble({ message }) {
         {/* Message Content */}
         <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
       </div>
-
-      {/* Avatar for User - only shown for user messages */}
-      {isUser && (
-        <div className="self-end mb-2 ml-2">
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-500/20 dark:bg-indigo-600/30">
-            <User size={16} className="text-indigo-600 dark:text-indigo-400" />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
