@@ -11,20 +11,31 @@ import {
   Settings,
   Sun,
   Moon,
-  HelpCircle,
-  Briefcase,
-  User,
-  Code,
   Info,
   Plus,
 } from "lucide-react";
 import { useTheme } from "@/lib/utils/ThemeContext";
+import Modal from "./Modal";
 
 export default function Sidebar({ children }) {
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const { darkMode, toggleTheme } = useTheme();
   const pathname = usePathname();
+
+  // Modal states
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalContent, setModalContent] = useState("");
+  const [modalTitle, setModalTitle] = useState("");
+  const [isErrorModal, setIsErrorModal] = useState(false);
+
+  // Function to show modal with specified content
+  const showModal = (content, title = "Information", isError = false) => {
+    setModalContent(content);
+    setModalTitle(title);
+    setIsErrorModal(isError);
+    setIsModalOpen(true);
+  };
 
   // Check if screen is mobile on mount and when window resizes
   useEffect(() => {
@@ -49,6 +60,20 @@ export default function Sidebar({ children }) {
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
+  };
+
+  // Handle plus button click
+  const handlePlusClick = () => {
+    showModal(
+      "Feature unavailable to avoid costs since this is a portfolio project :)",
+      "New Chat",
+      false
+    );
+  };
+
+  // Handle files button click
+  const handleFilesClick = () => {
+    showModal("Feature will be available soon", "Files", false);
   };
 
   // Simplified animation variants
@@ -126,40 +151,34 @@ export default function Sidebar({ children }) {
         />
       )}
 
+      {/* Modal Component */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={modalTitle}
+        isError={isErrorModal}
+      >
+        <p>{modalContent}</p>
+      </Modal>
+
       {/* Sidebar */}
       <motion.div
-        className={`fixed top-0 left-0 h-screen ${
-          darkMode
-            ? "bg-slate-900 border-r border-indigo-900/40"
-            : "bg-white border-r border-slate-200"
-        } text-slate-700 dark:text-slate-200 z-40 shadow-lg overflow-hidden flex flex-col`}
+        className="fixed top-0 left-0 h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-indigo-900/40 text-slate-700 dark:text-slate-200 z-40 shadow-lg overflow-hidden flex flex-col"
         variants={sidebarVariants}
         animate={isOpen ? "open" : "closed"}
         initial={isMobile ? "closed" : "open"}
       >
-        <div
-          className={`flex items-center justify-between p-4 ${
-            darkMode
-              ? "bg-gradient-to-r from-indigo-900 to-slate-900 border-b border-indigo-800/30"
-              : "bg-gradient-to-r from-indigo-50 to-slate-100 border-b border-slate-200"
-          }`}
-        >
+        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-slate-100 dark:from-indigo-900 dark:to-slate-900 border-b border-slate-200 dark:border-indigo-800/30">
           <div
             className={`${
               isOpen ? "block" : "hidden"
-            } font-bold text-xl tracking-wide ${
-              darkMode ? "text-white" : "text-indigo-700"
-            }`}
+            } font-bold text-xl tracking-wide text-indigo-700 dark:text-white`}
           >
             PortofAI
           </div>
           <button
             onClick={toggleSidebar}
-            className={`p-2 rounded-full ${
-              darkMode
-                ? "hover:bg-indigo-800/50 text-indigo-300"
-                : "hover:bg-indigo-100 text-indigo-600"
-            } transition-colors cursor-pointer`}
+            className="p-2 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800/50 text-indigo-600 dark:text-indigo-300 transition-colors cursor-pointer"
           >
             {isOpen ? (
               <PanelRightClose size={20} />
@@ -178,33 +197,30 @@ export default function Sidebar({ children }) {
               </h3>
 
               <Plus
+                onClick={handlePlusClick}
                 className="hover:scale-[1.2] transition-all cursor-pointer rounded-full p-0.5 hover:bg-indigo-600/50 dark:hover:bg-indigo-800/50"
                 size={26}
               />
             </div>
           )}
-          <div className={`gap-y-1 grid ${darkMode ? "" : ""}`}>
+          <div className="gap-y-1 grid">
             {chatItems.map((item, index) => (
               <Link href={item.path} key={index}>
                 <div
-                  className={` flex items-center px-4 py-2 cursor-pointer ${
-                    pathname === item.path
-                      ? darkMode
-                        ? "bg-indigo-950 text-white border-l-2 border-indigo-500"
-                        : "bg-indigo-300 text-indigo-700 border-l-2 border-indigo-500"
-                      : darkMode
-                      ? "hover:bg-indigo-900/30 text-slate-300"
-                      : "hover:bg-indigo-50 text-slate-700"
-                  } transition-all hover:pl-6`}
+                  className={`flex items-center px-4 py-2 cursor-pointer 
+                    ${
+                      pathname === item.path
+                        ? "bg-indigo-300 dark:bg-indigo-950 text-indigo-700 dark:text-white border-l-2 border-indigo-500"
+                        : "hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-slate-700 dark:text-slate-300"
+                    } transition-all hover:pl-6`}
                 >
                   <div
-                    className={`flex items-center justify-center ${
-                      pathname === item.path
-                        ? "text-indigo-500"
-                        : darkMode
-                        ? "text-indigo-400"
-                        : "text-indigo-600"
-                    }`}
+                    className={`flex items-center justify-center 
+                      ${
+                        pathname === item.path
+                          ? "text-indigo-500"
+                          : "text-indigo-600 dark:text-indigo-400"
+                      }`}
                   >
                     {item.icon}
                   </div>
@@ -224,34 +240,24 @@ export default function Sidebar({ children }) {
               </h3>
             </div>
           )}
-          <div
-            className={`${
-              darkMode
-                ? "divide-y divide-slate-800/30"
-                : "divide-y divide-slate-200/70"
-            }`}
-          >
+          <div className="divide-y divide-slate-200/70 dark:divide-slate-800/30">
             {navigationItems.map((item, index) => (
               <Link href={item.path} key={index}>
                 <div
-                  className={`flex items-center px-4 py-3 cursor-pointer ${
-                    pathname === item.path
-                      ? darkMode
-                        ? "bg-indigo-900/40 text-white border-l-2 border-indigo-500"
-                        : "bg-indigo-50 text-indigo-700 border-l-2 border-indigo-500"
-                      : darkMode
-                      ? "hover:bg-indigo-900/30 text-slate-300"
-                      : "hover:bg-indigo-50 text-slate-700"
-                  } transition-all hover:pl-6`}
+                  className={`flex items-center px-4 py-3 cursor-pointer 
+                    ${
+                      pathname === item.path
+                        ? "bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-white border-l-2 border-indigo-500"
+                        : "hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-slate-700 dark:text-slate-300"
+                    } transition-all hover:pl-6`}
                 >
                   <div
-                    className={`flex items-center justify-center ${
-                      pathname === item.path
-                        ? "text-indigo-500"
-                        : darkMode
-                        ? "text-indigo-400"
-                        : "text-indigo-600"
-                    }`}
+                    className={`flex items-center justify-center 
+                      ${
+                        pathname === item.path
+                          ? "text-indigo-500"
+                          : "text-indigo-600 dark:text-indigo-400"
+                      }`}
                   >
                     {item.icon}
                   </div>
@@ -265,18 +271,11 @@ export default function Sidebar({ children }) {
         </div>
 
         {/* Theme toggle button */}
-        <div
-          className={`p-4 ${
-            darkMode ? "border-t border-slate-800" : "border-t border-slate-200"
-          }`}
-        >
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800">
           <div
-            className={`flex items-center px-4 py-2 cursor-pointer ${
-              darkMode
-                ? "hover:bg-indigo-900/30 text-slate-300"
-                : "hover:bg-indigo-50 text-slate-700"
-            } rounded-lg transition-all ${!isOpen ? "justify-center" : ""}`}
+            className="flex items-center px-4 py-2 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-slate-700 dark:text-slate-300 rounded-lg transition-all"
             onClick={toggleTheme}
+            style={{ justifyContent: !isOpen ? "center" : "" }}
           >
             <motion.div
               animate={{ rotate: darkMode ? 0 : 360 }}

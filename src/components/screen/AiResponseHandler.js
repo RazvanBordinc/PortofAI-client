@@ -3,24 +3,28 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 
-export default function AiResponseHandler({ userMessage, onAiResponse }) {
-  const [isTyping, setIsTyping] = useState(false);
+export default function AiResponseHandler({
+  userMessage,
+  onAiResponse,
+  isTyping,
+  setIsTyping,
+}) {
   const targetRef = useRef(null);
+
   const scrollDown = () => {
     targetRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
-    if (!userMessage) return;
+    if (!userMessage || !isTyping) return;
 
     // Show typing indicator
-    setIsTyping(true);
-
     // Simulate AI thinking time - in a real app, this would be an API call
     const thinkingTime = Math.floor(Math.random() * 1000) + 800; // Random time between 800-1800ms
 
     const timer = setTimeout(() => {
-      setIsTyping(false);
+      // Don't proceed if typing was cancelled
+      if (!isTyping) return;
 
       // Generate placeholder response
       // In a real app, this would be the response from your AI backend
@@ -46,18 +50,20 @@ export default function AiResponseHandler({ userMessage, onAiResponse }) {
     }, thinkingTime);
 
     return () => clearTimeout(timer);
-  }, [userMessage, onAiResponse]);
+  }, [userMessage, onAiResponse, isTyping]);
+
   useEffect(() => {
     scrollDown();
   }, [isTyping]);
+
   return (
     <>
       {isTyping && (
         <div className="flex justify-start">
-          <div className="p-4 rounded-lg max-w-[80%]   text-slate-800 dark:text-slate-200 shadow-sm">
+          <div className="p-4 rounded-lg max-w-[80%] text-slate-800 dark:text-slate-200 shadow-sm">
             <div className="flex items-center">
               <motion.div
-                className="relative h-8 w-32 overflow-hidden rounded-md "
+                className="relative h-8 w-32 overflow-hidden rounded-md"
                 ref={targetRef}
               >
                 {/* Animated gradient background */}

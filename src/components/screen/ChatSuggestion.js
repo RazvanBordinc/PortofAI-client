@@ -49,6 +49,11 @@ export default function ChatSuggestion({ onSelectSuggestion }) {
     show: { opacity: 1, y: 0 },
   };
 
+  // Handle suggestion click - directly send it rather than just filling the input
+  const handleSuggestionClick = (text) => {
+    onSelectSuggestion(text);
+  };
+
   return (
     <div className="px-4 py-3 absolute bottom-20 w-full">
       <motion.div
@@ -67,7 +72,7 @@ export default function ChatSuggestion({ onSelectSuggestion }) {
               variants={itemVariants}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => onSelectSuggestion(suggestion.text)}
+              onClick={() => handleSuggestionClick(suggestion.text)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
                 text-black dark:text-white shadow-sm transition-all duration-300
                 border border-white/10 dark:border-slate-700/30 hover:shadow-md`}
