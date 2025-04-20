@@ -113,7 +113,7 @@ export default function ChatInterface() {
           <div className="flex items-center">
             <button
               type="button"
-              className="p-2 rounded-full text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-full text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               title="Attach File"
             >
               <Paperclip size={20} />

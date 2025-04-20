@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   PanelRightClose,
   PanelRightOpen,
@@ -10,6 +12,11 @@ import {
   Sun,
   Moon,
   HelpCircle,
+  Briefcase,
+  User,
+  Code,
+  Info,
+  Plus,
 } from "lucide-react";
 import { useTheme } from "@/lib/utils/ThemeContext";
 
@@ -17,6 +24,7 @@ export default function Sidebar({ children }) {
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const { darkMode, toggleTheme } = useTheme();
+  const pathname = usePathname();
 
   // Check if screen is mobile on mount and when window resizes
   useEffect(() => {
@@ -67,10 +75,27 @@ export default function Sidebar({ children }) {
     },
   };
 
+  // Predefined chat navigation items
+  const chatItems = [
+    {
+      name: "Current Chat",
+      icon: <MessageSquare size={20} />,
+      path: "/",
+    },
+  ];
+
+  // Other navigation items
   const navigationItems = [
-    { name: "Chats", icon: <MessageSquare size={20} /> },
-    { name: "Info", icon: <HelpCircle size={20} /> },
-    { name: "Settings", icon: <Settings size={20} /> },
+    {
+      name: "Info",
+      icon: <Info size={20} />,
+      path: "/info",
+    },
+    {
+      name: "Settings",
+      icon: <Settings size={20} />,
+      path: "/settings",
+    },
   ];
 
   return (
@@ -144,33 +169,99 @@ export default function Sidebar({ children }) {
           </button>
         </div>
 
-        {/* Navigation */}
-        <div
-          className={`flex-1 overflow-y-auto py-4 ${
-            darkMode ? "divide-y divide-slate-800" : "divide-y divide-slate-200"
-          }`}
-        >
-          {navigationItems.map((item, index) => (
-            <div
-              key={index}
-              className={`flex items-center px-4 py-3 cursor-pointer ${
-                darkMode
-                  ? "hover:bg-indigo-900/30 text-slate-300"
-                  : "hover:bg-indigo-50 text-slate-700"
-              } transition-all hover:pl-6`}
-            >
-              <div
-                className={`flex items-center justify-center ${
-                  darkMode ? "text-indigo-400" : "text-indigo-600"
-                }`}
-              >
-                {item.icon}
-              </div>
-              <span className={`ml-3 ${isOpen ? "block" : "hidden"}`}>
-                {item.name}
-              </span>
+        {/* Chat Navigation */}
+        <div className="flex-1 overflow-y-auto">
+          {isOpen && (
+            <div className="px-4 py-2 mt-2 flex items-center justify-between">
+              <h3 className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
+                Chats
+              </h3>
+
+              <Plus
+                className="hover:scale-[1.2] transition-all cursor-pointer rounded-full p-0.5 hover:bg-indigo-600/50 dark:hover:bg-indigo-800/50"
+                size={26}
+              />
             </div>
-          ))}
+          )}
+          <div className={`gap-y-1 grid ${darkMode ? "" : ""}`}>
+            {chatItems.map((item, index) => (
+              <Link href={item.path} key={index}>
+                <div
+                  className={` flex items-center px-4 py-2 cursor-pointer ${
+                    pathname === item.path
+                      ? darkMode
+                        ? "bg-indigo-950 text-white border-l-2 border-indigo-500"
+                        : "bg-indigo-300 text-indigo-700 border-l-2 border-indigo-500"
+                      : darkMode
+                      ? "hover:bg-indigo-900/30 text-slate-300"
+                      : "hover:bg-indigo-50 text-slate-700"
+                  } transition-all hover:pl-6`}
+                >
+                  <div
+                    className={`flex items-center justify-center ${
+                      pathname === item.path
+                        ? "text-indigo-500"
+                        : darkMode
+                        ? "text-indigo-400"
+                        : "text-indigo-600"
+                    }`}
+                  >
+                    {item.icon}
+                  </div>
+                  <span className={`ml-3 ${isOpen ? "block" : "hidden"}`}>
+                    {item.name}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {/* Other Navigation */}
+          {isOpen && (
+            <div className="px-4 py-2 mt-4">
+              <h3 className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
+                Navigation
+              </h3>
+            </div>
+          )}
+          <div
+            className={`${
+              darkMode
+                ? "divide-y divide-slate-800/30"
+                : "divide-y divide-slate-200/70"
+            }`}
+          >
+            {navigationItems.map((item, index) => (
+              <Link href={item.path} key={index}>
+                <div
+                  className={`flex items-center px-4 py-3 cursor-pointer ${
+                    pathname === item.path
+                      ? darkMode
+                        ? "bg-indigo-900/40 text-white border-l-2 border-indigo-500"
+                        : "bg-indigo-50 text-indigo-700 border-l-2 border-indigo-500"
+                      : darkMode
+                      ? "hover:bg-indigo-900/30 text-slate-300"
+                      : "hover:bg-indigo-50 text-slate-700"
+                  } transition-all hover:pl-6`}
+                >
+                  <div
+                    className={`flex items-center justify-center ${
+                      pathname === item.path
+                        ? "text-indigo-500"
+                        : darkMode
+                        ? "text-indigo-400"
+                        : "text-indigo-600"
+                    }`}
+                  >
+                    {item.icon}
+                  </div>
+                  <span className={`ml-3 ${isOpen ? "block" : "hidden"}`}>
+                    {item.name}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
 
         {/* Theme toggle button */}
@@ -203,7 +294,7 @@ export default function Sidebar({ children }) {
 
       <div
         className={`transition-all duration-300 ${
-          isOpen ? (isMobile ? "ml-0" : "ml-60") : "ml-0 md:ml-15  "
+          isOpen ? (isMobile ? "ml-0" : "ml-60") : "ml-0 md:ml-15"
         }`}
       >
         {children}
