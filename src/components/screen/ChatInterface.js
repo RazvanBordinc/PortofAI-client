@@ -87,7 +87,7 @@ export default function ChatInterface() {
       <ChatHeader />
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 mt-16 bg-slate-50 dark:bg-slate-950">
+      <div className="flex-1 overflow-y-auto p-4 mt-16">
         <div className="max-w-3xl mx-auto space-y-6">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center space-y-6 py-8">
@@ -124,12 +124,20 @@ export default function ChatInterface() {
 
       {/* Suggestions - only show when conversation is empty or just starting */}
       {shouldShowSuggestions && (
-        <ChatSuggestion onSelectSuggestion={handleSuggestionSelect} />
+        <ChatSuggestion
+          distance={!messages.length > 0 ? "mb-16" : "mb-4"}
+          onSelectSuggestion={handleSuggestionSelect}
+        />
       )}
 
       {/* Message Input */}
-      <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-indigo-900/40 shadow-lg">
-        <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto">
+      <div className="p-4 ">
+        <form
+          onSubmit={handleSendMessage}
+          className={`max-w-3xl mx-auto transition-all ${
+            !messages.length > 0 ? "mb-16" : "mb-4"
+          }`}
+        >
           <div className="flex items-center">
             <button
               type="button"
@@ -154,8 +162,8 @@ export default function ChatInterface() {
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                className={`w-full p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 
-                  text-slate-800 dark:text-white border border-slate-200 
+                className={`w-full p-3 rounded-2xl   
+                  text-slate-800 dark:text-white border bg-slate-200 dark:bg-slate-800 border-slate-200 
                   dark:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 
                   outline-none transition-all shadow-inner
                   ${isAiTyping ? "opacity-60 cursor-not-allowed" : ""}`}
@@ -177,7 +185,7 @@ export default function ChatInterface() {
                     ? "bg-red-500 hover:bg-red-600 text-white cursor-pointer shadow-md hover:shadow-lg"
                     : !newMessage.trim()
                     ? "bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
-                    : "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-md hover:shadow-lg"
+                    : "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-md hover:shadow-lg cursor-pointer"
                 }`}
               disabled={!isAiTyping && !newMessage.trim()}
               title={isAiTyping ? "Stop AI" : "Send Message"}

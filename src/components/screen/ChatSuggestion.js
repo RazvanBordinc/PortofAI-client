@@ -4,7 +4,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Code, User, Mail, Award, Briefcase } from "lucide-react";
 
-export default function ChatSuggestion({ onSelectSuggestion }) {
+export default function ChatSuggestion({ onSelectSuggestion, distance }) {
   const suggestions = [
     {
       id: 1,
@@ -55,7 +55,9 @@ export default function ChatSuggestion({ onSelectSuggestion }) {
   };
 
   return (
-    <div className="px-4 py-3 absolute bottom-20 w-full">
+    <div
+      className={`px-4 py-3 absolute bottom-20 w-full transition-all ${distance}`}
+    >
       <motion.div
         className="max-w-3xl mx-auto"
         initial="hidden"
@@ -75,7 +77,7 @@ export default function ChatSuggestion({ onSelectSuggestion }) {
               onClick={() => handleSuggestionClick(suggestion.text)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
                 text-black dark:text-white shadow-sm transition-all duration-300
-                border border-white/10 dark:border-slate-700/30 hover:shadow-md`}
+                border border-white/10 dark:border-slate-700/30 hover:shadow-md curosr-pointer`}
             >
               <span className="opacity-70">{suggestion.icon}</span>
               <span>{suggestion.text}</span>
