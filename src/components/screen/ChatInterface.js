@@ -80,8 +80,14 @@ export default function ChatInterface() {
     // Add user message
     const userMessage = {
       id: Date.now(),
-      content: newMessage.trim(),
+      content: {
+        text: newMessage.trim(),
+        mail: "testmail",
+        github: "testgithub",
+        linkedin: "testlinkedin",
+      },
       sender: "user",
+      format: "contact",
       timestamp: new Date().toISOString(),
     };
 
