@@ -74,27 +74,24 @@ export default function ChatInterface() {
   }, []);
 
   const handleSendMessage = (e) => {
-    e?.preventDefault(); // Make preventDefault optional for suggestion clicks
+    e?.preventDefault();
     if (newMessage.trim() === "" || isAiTyping) return;
 
-    // Add user message
+    // User message with format in the content object
     const userMessage = {
       id: Date.now(),
       content: {
         text: newMessage.trim(),
-        mail: "testmail",
-        github: "testgithub",
-        linkedin: "testlinkedin",
+        format: "text", // User messages are usually just text
       },
       sender: "user",
-      format: "contact",
       timestamp: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setLastUserMessage(userMessage); // Set this message as the trigger for AI response
+    setLastUserMessage(userMessage);
     setNewMessage("");
-    setIsAiTyping(true); // Set AI typing state to true
+    setIsAiTyping(true);
   };
 
   const handleStopAi = () => {

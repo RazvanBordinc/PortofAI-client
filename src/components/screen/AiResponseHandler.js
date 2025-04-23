@@ -26,24 +26,29 @@ export default function AiResponseHandler({
       // Don't proceed if typing was cancelled
       if (!isTyping) return;
 
-      // Generate placeholder response
-      // In a real app, this would be the response from your AI backend
+      // In a real app, you would get the response and format from your backend
+      // For demo purposes, we'll use a placeholder response
       const placeholderResponses = [
-        "I understand what you're saying. Would you like to know more about this topic? That's an interesting point. Let me share some thoughts on that. That's an interesting point. Let me share some thoughts on that. ",
+        "I understand what you're saying. Would you like to know more about my skills and experience?",
         "That's an interesting point. Let me share some thoughts on that.",
-        "I've analyzed your question and here's what I can tell you.",
-        "Based on the information available, here's my response.",
-        "I'm here to help with that. Here's what you should know.",
+        "I've analyzed your question and here's what I can tell you about my background.",
+        "Based on your interest, here's some relevant information about my work.",
+        "I'm here to help with that. Here's what you should know about my expertise.",
       ];
 
       const responseIndex = Math.floor(
         Math.random() * placeholderResponses.length
       );
 
+      // The format is now inside the content object - matching the structure of user messages
       const aiMessage = {
         id: Date.now(),
-        content: placeholderResponses[responseIndex],
+        content: {
+          text: placeholderResponses[responseIndex],
+          format: "table", // This would come from your backend
+        },
         sender: "ai",
+        timestamp: new Date().toISOString(),
       };
 
       onAiResponse(aiMessage);

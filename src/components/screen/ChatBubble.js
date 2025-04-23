@@ -6,9 +6,11 @@ import FormatMessage from "./Format/FormatMessage";
 
 export default function ChatBubble({ message }) {
   const [isAI, setIsAI] = React.useState(false);
+
   useEffect(() => {
     setIsAI(message.sender !== "user");
   }, [message]);
+
   return (
     <div className={`flex ${!isAI ? "justify-end" : "justify-start"}`}>
       {/* Avatar for AI - only shown for AI messages */}
@@ -27,19 +29,21 @@ export default function ChatBubble({ message }) {
           ${
             !isAI
               ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-tr-none"
-              : "  text-slate-800 dark:text-slate-200 rounded-tl-none"
+              : " text-slate-800 dark:text-slate-200 rounded-tl-none"
           }
           transform transition-all duration-200 hover:shadow-lg
         `}
       >
         {/* Message Content */}
-        <p className="whitespace-pre-wrap leading-relaxed">
-          {isAI ? (
-            <FormatMessage format={message.format} message={message.content} />
-          ) : (
-            message.content.text
-          )}
-        </p>
+        {isAI ? (
+          <FormatMessage message={message.content} />
+        ) : (
+          <p className="whitespace-pre-wrap leading-relaxed">
+            {typeof message.content === "object"
+              ? message.content.text
+              : message.content}
+          </p>
+        )}
       </div>
     </div>
   );
