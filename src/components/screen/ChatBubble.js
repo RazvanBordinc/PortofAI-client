@@ -29,7 +29,9 @@ export default function ChatBubble({ message }) {
           ${
             !isAI
               ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-tr-none"
-              : " text-slate-800 dark:text-slate-200 rounded-tl-none"
+              : message.isError
+              ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-tl-none"
+              : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none"
           }
           transform transition-all duration-200 hover:shadow-lg
         `}
@@ -44,6 +46,22 @@ export default function ChatBubble({ message }) {
               : message.content}
           </p>
         )}
+
+        {/* Timestamp */}
+        <div
+          className={`text-xs mt-1 ${
+            !isAI
+              ? "text-indigo-200"
+              : message.isError
+              ? "text-red-500 dark:text-red-400"
+              : "text-slate-500 dark:text-slate-400"
+          }`}
+        >
+          {new Date(message.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </div>
       </div>
     </div>
   );

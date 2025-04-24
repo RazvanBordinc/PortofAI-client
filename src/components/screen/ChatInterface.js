@@ -4,18 +4,23 @@ import React, { useState, useRef, useEffect } from "react";
 import { Send, Square } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import RemainingRequests from "./RemainingRequests";
+import ChatSuggestion from "./ChatSuggestion";
+import AiResponseHandler from "./AiResponseHandler";
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [remaining, setRemaining] = useState(15);
+  const [isTyping, setIsTyping] = useState(false);
+  const [currentUserMessage, setCurrentUserMessage] = useState(null);
+  const [isFetchError, setIsFetchError] = useState(false);
   const messageEndRef = useRef(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isTyping]);
 
   // Fetch remaining requests on component mount
   useEffect(() => {
@@ -25,15 +30,47 @@ export default function ChatInterface() {
   // Fetch remaining API requests
   const fetchRemainingRequests = async () => {
     try {
-      const response = await fetch("http://localhost:5189/api/remaining");
+      setIsFetchError(false);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(`${apiUrl}/api/remaining`, {
+        signal: controller.signal,
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
+        console.error(`Error response: ${response.status}`);
         throw new Error(`Error: ${response.status}`);
       }
+
       const data = await response.json();
       setRemaining(data.remaining);
     } catch (error) {
       console.error("Error fetching remaining requests:", error);
+      // Set a default remaining value on error
+      setRemaining(15);
     }
+  };
+
+  // Handle AI response
+  const handleAiResponse = (aiMessage) => {
+    setMessages((prev) => [...prev, aiMessage]);
+    setIsTyping(false);
+  };
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (text) => {
+    setNewMessage(text);
+    setTimeout(() => handleSendMessage(), 10);
   };
 
   // Send message to backend
@@ -50,44 +87,74 @@ export default function ChatInterface() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    setCurrentUserMessage(userMessage);
     setNewMessage("");
     setIsLoading(true);
+    setIsTyping(true);
+    setIsFetchError(false);
 
     try {
-      const response = await fetch("http://localhost:5189/api/chat", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(`${apiUrl}/api/chat`, {
         method: "POST",
+        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
+          Accept: "application/json",
         },
-        body: JSON.stringify({ message: newMessage.trim() }),
+        mode: "cors",
+        body: JSON.stringify({ message: userMessage.content }),
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
+        console.error(`Error response: ${response.status}`);
         throw new Error(`Error: ${response.status}`);
       }
 
       const data = await response.json();
 
-      // Add bot response to chat
+      // Create structured response format - important to have text as a string
+      const responseText =
+        typeof data.response === "string"
+          ? data.response
+          : "Sorry, I received an invalid response format.";
+
+      // Add bot response to chat with structured format
       const botMessage = {
         id: Date.now() + 1,
-        content: data.response,
+        content: {
+          text: responseText,
+          format: data.format || "text", // Use format from backend or default to text
+          data: data.formatData || null, // Additional data for formatted content
+        },
         sender: "ai",
         timestamp: new Date().toISOString(),
       };
 
-      setMessages((prev) => [...prev, botMessage]);
+      handleAiResponse(botMessage);
 
       // Update remaining requests
       fetchRemainingRequests();
     } catch (error) {
       console.error("Error sending message:", error);
+      setIsTyping(false);
 
       // Add error message to chat
       const errorMessage = {
         id: Date.now() + 1,
-        content:
-          "Sorry, there was an error processing your request. Please try again later.",
+        content: {
+          text:
+            error.name === "AbortError"
+              ? "The request took too long to complete. Please try again later."
+              : "Sorry, there was an error processing your request. Please try again later.",
+          format: "text",
+        },
         sender: "ai",
         isError: true,
         timestamp: new Date().toISOString(),
@@ -100,8 +167,19 @@ export default function ChatInterface() {
   };
 
   const handleStopAi = () => {
-    // In a real app, you would cancel the request here
+    setIsTyping(false);
     setIsLoading(false);
+  };
+
+  // Get connection status message
+  const getConnectionMessage = () => {
+    if (isLoading) {
+      return "Waiting for response...";
+    }
+    if (remaining <= 0) {
+      return "Daily message limit reached";
+    }
+    return "Type your message...";
   };
 
   return (
@@ -140,29 +218,27 @@ export default function ChatInterface() {
             ))
           )}
 
-          {/* Loading indicator */}
-          {isLoading && (
-            <div className="flex items-center space-x-2">
-              <div className="flex space-x-1.5">
-                <div className="w-2.5 h-2.5 bg-indigo-500 dark:bg-indigo-400 rounded-full animate-bounce"></div>
-                <div
-                  className="w-2.5 h-2.5 bg-indigo-500 dark:bg-indigo-400 rounded-full animate-bounce"
-                  style={{ animationDelay: "0.2s" }}
-                ></div>
-                <div
-                  className="w-2.5 h-2.5 bg-indigo-500 dark:bg-indigo-400 rounded-full animate-bounce"
-                  style={{ animationDelay: "0.4s" }}
-                ></div>
-              </div>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                AI is thinking...
-              </span>
-            </div>
+          {/* AI Typing Indicator */}
+          {isTyping && (
+            <AiResponseHandler
+              userMessage={currentUserMessage}
+              onAiResponse={handleAiResponse}
+              isTyping={isTyping}
+              setIsTyping={setIsTyping}
+            />
           )}
 
           <div ref={messageEndRef} />
         </div>
       </div>
+
+      {/* Suggestions */}
+      {messages.length === 0 && (
+        <ChatSuggestion
+          onSelectSuggestion={handleSuggestionSelect}
+          distance="bottom-20"
+        />
+      )}
 
       {/* Message Input */}
       <div className="p-4">
@@ -172,13 +248,7 @@ export default function ChatInterface() {
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder={
-                isLoading
-                  ? "Waiting for response..."
-                  : remaining <= 0
-                  ? "Daily message limit reached"
-                  : "Type your message..."
-              }
+              placeholder={getConnectionMessage()}
               disabled={isLoading || remaining <= 0}
               className={`w-full p-4 pr-14 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 
                   bg-white dark:bg-slate-800 text-slate-800 dark:text-white 
