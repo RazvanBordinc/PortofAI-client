@@ -1,332 +1,213 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import {
-  Send,
-  Paperclip,
-  Square,
-  PenLine,
-  Check,
-  Users,
-  BriefcaseBusiness,
-  Pen,
-  NotebookTabs,
-  Stamp,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import ChatBubble from "./ChatBubble";
-import AiResponseHandler from "./AiResponseHandler";
-
-import ChatSuggestion from "./ChatSuggestion";
-import LogoAnimationSvg from "../shared/LogoAnimationSvg";
-import Modal from "../shared/Modal";
+import { Send, Square } from "lucide-react";
+import ChatMessage from "./ChatMessage";
+import RemainingRequests from "./RemainingRequests";
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [lastUserMessage, setLastUserMessage] = useState(null);
-  const [isAiTyping, setIsAiTyping] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isStyleMenuOpen, setIsStyleMenuOpen] = useState(false);
-  const [selectedStyle, setSelectedStyle] = useState("NORMAL");
+  const [isLoading, setIsLoading] = useState(false);
+  const [remaining, setRemaining] = useState(15);
   const messageEndRef = useRef(null);
-  const inputRef = useRef(null);
-  const styleMenuRef = useRef(null);
-
-  // Style options
-  const styleOptions = [
-    { id: "NORMAL", label: "Normal", icon: <Pen size={16} /> },
-    { id: "FORMAL", label: "Formal", icon: <BriefcaseBusiness size={16} /> },
-    {
-      id: "EXPLANATORY",
-      label: "Explanatory",
-      icon: <NotebookTabs size={16} />,
-    },
-    { id: "MINIMALIST", label: "Minimalist", icon: <Stamp size={16} /> },
-    { id: "HR", label: "HR", icon: <Users size={16} /> },
-  ];
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Focus input on component mount
+  // Fetch remaining requests on component mount
   useEffect(() => {
-    inputRef.current?.focus();
+    fetchRemainingRequests();
   }, []);
 
-  // Close style menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        styleMenuRef.current &&
-        !styleMenuRef.current.contains(event.target)
-      ) {
-        setIsStyleMenuOpen(false);
+  // Fetch remaining API requests
+  const fetchRemainingRequests = async () => {
+    try {
+      const response = await fetch("http://localhost:5189/api/remaining");
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
       }
-    };
+      const data = await response.json();
+      setRemaining(data.remaining);
+    } catch (error) {
+      console.error("Error fetching remaining requests:", error);
+    }
+  };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  const handleSendMessage = (e) => {
+  // Send message to backend
+  const handleSendMessage = async (e) => {
     e?.preventDefault();
-    if (newMessage.trim() === "" || isAiTyping) return;
+    if (!newMessage.trim() || isLoading || remaining <= 0) return;
 
-    // User message with format in the content object
+    // Add user message to chat
     const userMessage = {
       id: Date.now(),
-      content: {
-        text: newMessage.trim(),
-        format: "text", // User messages are usually just text
-      },
+      content: newMessage.trim(),
       sender: "user",
       timestamp: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setLastUserMessage(userMessage);
     setNewMessage("");
-    setIsAiTyping(true);
-  };
+    setIsLoading(true);
 
-  const handleStopAi = () => {
-    // Stop the AI from typing
-    setIsAiTyping(false);
-    setLastUserMessage(null);
-  };
+    try {
+      const response = await fetch("http://localhost:5189/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: newMessage.trim() }),
+      });
 
-  const handleAiResponse = (aiMessage) => {
-    setMessages((prev) => [...prev, aiMessage]);
-    setLastUserMessage(null); // Reset after handling
-    setIsAiTyping(false); // Set AI typing state to false after response
-  };
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
 
-  // Toggle style menu
-  const toggleStyleMenu = () => {
-    setIsStyleMenuOpen(!isStyleMenuOpen);
-  };
+      const data = await response.json();
 
-  // Handle style selection
-  const handleStyleSelect = (style) => {
-    setSelectedStyle(style);
-    setIsStyleMenuOpen(false);
-  };
-
-  // Handle suggestion selection
-  const handleSuggestionSelect = (text) => {
-    if (isAiTyping) return; // Don't allow new suggestions while AI is typing
-
-    setNewMessage(text);
-    // Auto-send the suggestion immediately
-    setTimeout(() => {
-      const userMessage = {
-        id: Date.now(),
-        content: text.trim(),
-        sender: "user",
+      // Add bot response to chat
+      const botMessage = {
+        id: Date.now() + 1,
+        content: data.response,
+        sender: "ai",
         timestamp: new Date().toISOString(),
       };
 
-      setMessages((prev) => [...prev, userMessage]);
-      setLastUserMessage(userMessage);
-      setNewMessage("");
-      setIsAiTyping(true);
-    }, 100);
+      setMessages((prev) => [...prev, botMessage]);
+
+      // Update remaining requests
+      fetchRemainingRequests();
+    } catch (error) {
+      console.error("Error sending message:", error);
+
+      // Add error message to chat
+      const errorMessage = {
+        id: Date.now() + 1,
+        content:
+          "Sorry, there was an error processing your request. Please try again later.",
+        sender: "ai",
+        isError: true,
+        timestamp: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStopAi = () => {
+    // In a real app, you would cancel the request here
+    setIsLoading(false);
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 relative">
+    <div className="h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 relative pt-16">
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 mt-16">
+      <div className="flex-1 overflow-y-auto p-4">
         <div className="max-w-3xl mx-auto space-y-6">
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center space-y-6 py-8">
-              {/* Animated Logo */}
-              <LogoAnimationSvg />
-
-              <div className="text-center">
-                <p className="text-center text-slate-600 dark:text-slate-300 font-medium text-lg mb-2">
-                  No messages yet. Start a conversation!
-                </p>
-                <p className="text-center text-slate-400 dark:text-slate-500 text-sm max-w-md">
-                  Ask me anything about my projects, me, or questions you might
-                  have. I'm here to help!
-                </p>
+            <div className="flex flex-col items-center justify-center h-full py-8">
+              <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mb-6">
+                <svg
+                  className="w-10 h-10 text-indigo-600 dark:text-indigo-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                  />
+                </svg>
               </div>
+              <h3 className="text-xl font-medium text-slate-800 dark:text-slate-200 mb-2">
+                Welcome to the Chat Bot
+              </h3>
+              <p className="text-center text-slate-600 dark:text-slate-400 max-w-md">
+                Ask me anything or start a conversation. I&apos;m here to help!
+              </p>
             </div>
           ) : (
             messages.map((message) => (
-              <ChatBubble key={message.id} message={message} />
+              <ChatMessage key={message.id} message={message} />
             ))
           )}
 
-          {/* AI Response Handler Component */}
-          <AiResponseHandler
-            userMessage={lastUserMessage}
-            onAiResponse={handleAiResponse}
-            isTyping={isAiTyping}
-            setIsTyping={setIsAiTyping}
-          />
+          {/* Loading indicator */}
+          {isLoading && (
+            <div className="flex items-center space-x-2">
+              <div className="flex space-x-1.5">
+                <div className="w-2.5 h-2.5 bg-indigo-500 dark:bg-indigo-400 rounded-full animate-bounce"></div>
+                <div
+                  className="w-2.5 h-2.5 bg-indigo-500 dark:bg-indigo-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.2s" }}
+                ></div>
+                <div
+                  className="w-2.5 h-2.5 bg-indigo-500 dark:bg-indigo-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.4s" }}
+                ></div>
+              </div>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                AI is thinking...
+              </span>
+            </div>
+          )}
 
           <div ref={messageEndRef} />
         </div>
       </div>
 
-      {/* Suggestions - only show when conversation is empty or just starting */}
-      {!messages.length > 0 && (
-        <ChatSuggestion
-          distance={!messages.length > 0 ? "mb-30" : "mb-4"}
-          onSelectSuggestion={handleSuggestionSelect}
-        />
-      )}
-
       {/* Message Input */}
-      <div className="p-4 ">
-        <form
-          onSubmit={handleSendMessage}
-          className={`max-w-3xl mx-auto transition-all ${
-            !messages.length > 0 ? "mb-16" : "mb-4"
-          }`}
-        >
-          <div className="flex items-center">
-            <Modal
-              isOpen={isModalOpen}
-              onClose={() => setIsModalOpen(false)}
-              title={"Attach File"}
-              isError={false}
-            >
-              This feature is coming soon! In the meantime, feel free to ask me
-              anything or share your thoughts.
-            </Modal>
-            <div className="flex-1 mx-2 relative">
-              <input
-                ref={inputRef}
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                className={`w-full p-3 rounded-2xl   
-                  text-slate-800 dark:text-white border bg-slate-200 dark:bg-slate-800 border-slate-200 
-                  dark:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 
-                  outline-none transition-all shadow-inner pb-14 pl-4 pt-4
-                  ${isAiTyping ? "opacity-60 cursor-not-allowed" : ""}`}
-                placeholder={
-                  isAiTyping
-                    ? "Wait for AI response..."
-                    : "Type your message..."
-                }
-                disabled={isAiTyping}
-              />
-              {/* In-text controls */}
-              <div className="absolute left-3 bottom-3 flex items-center">
-                {/* Attach File Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(true)}
-                  className="py-1 px-3 rounded-full text-slate-500 flex items-center space-x-2 border dark:border-slate-700/60 dark:text-slate-400 hover:bg-slate-300/30 dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
-                  title="Attach File"
-                >
-                  <Paperclip size={18} />
-                  <span className="text-xs font-semibold">Attach File</span>
-                </button>
-
-                {/* Style Selector Button */}
-                <div className="relative ml-1" ref={styleMenuRef}>
-                  <button
-                    type="button"
-                    onClick={toggleStyleMenu}
-                    className="py-1 px-3 rounded-full text-slate-500 flex items-center space-x-2 border dark:border-slate-700/60 dark:text-slate-400 hover:bg-slate-300/30 dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
-                    title="Select Response Style"
-                  >
-                    <PenLine size={18} />
-                    <span className="text-xs font-semibold">Style</span>
-                  </button>
-
-                  {/* Style Selector Menu */}
-                  <AnimatePresence>
-                    {isStyleMenuOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        transition={{ duration: 0.15, ease: "easeOut" }}
-                        className="absolute bottom-full right-0 mb-2 w-44 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-10 overflow-hidden"
-                      >
-                        <div className="py-1">
-                          {styleOptions.map((style) => (
-                            <motion.button
-                              key={style.id}
-                              onClick={() => handleStyleSelect(style.id)}
-                              whileHover={{
-                                backgroundColor: "rgba(99, 102, 241, 0.1)",
-                              }}
-                              whileTap={{ scale: 0.98 }}
-                              className={`flex items-center justify-between w-full px-4 py-2 text-sm text-left relative cursor-pointer
-                                ${
-                                  selectedStyle === style.id
-                                    ? "text-indigo-600 dark:text-indigo-400 font-medium"
-                                    : "text-slate-700 dark:text-slate-300"
-                                }`}
-                            >
-                              <span className="absolute left-2">
-                                {style.icon}
-                              </span>
-                              <span className="ml-4">{style.label}</span>
-                              {selectedStyle === style.id && (
-                                <Check
-                                  size={16}
-                                  className="text-indigo-600 dark:text-indigo-400"
-                                />
-                              )}
-                            </motion.button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>{" "}
-              <button
-                type={isAiTyping ? "button" : "submit"}
-                onClick={isAiTyping ? handleStopAi : undefined}
-                className={`p-3 absolute top-1/2 -translate-y-1/2 right-2 rounded-full transition-all duration-200
+      <div className="p-4">
+        <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto mb-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder={
+                isLoading
+                  ? "Waiting for response..."
+                  : remaining <= 0
+                  ? "Daily message limit reached"
+                  : "Type your message..."
+              }
+              disabled={isLoading || remaining <= 0}
+              className={`w-full p-4 pr-14 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 
+                  bg-white dark:bg-slate-800 text-slate-800 dark:text-white 
+                  focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400
+                  ${
+                    isLoading || remaining <= 0
+                      ? "opacity-70 cursor-not-allowed"
+                      : ""
+                  }`}
+            />
+            <button
+              type={isLoading ? "button" : "submit"}
+              onClick={isLoading ? handleStopAi : undefined}
+              disabled={!newMessage.trim() || (remaining <= 0 && !isLoading)}
+              className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-2 rounded-full
                 ${
-                  isAiTyping
-                    ? "bg-red-500 hover:bg-red-600 text-white cursor-pointer shadow-md hover:shadow-lg"
-                    : !newMessage.trim()
-                    ? "bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
-                    : "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-md hover:shadow-lg cursor-pointer"
-                }`}
-                disabled={!isAiTyping && !newMessage.trim()}
-                title={isAiTyping ? "Stop AI" : "Send Message"}
-              >
-                {isAiTyping ? (
-                  <Square size={20} />
-                ) : (
-                  <Send
-                    size={20}
-                    className={newMessage.trim() ? "transform rotate-45" : ""}
-                  />
-                )}
-              </button>
-            </div>
+                  isLoading
+                    ? "bg-red-500 hover:bg-red-600 text-white"
+                    : !newMessage.trim() || remaining <= 0
+                    ? "bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                    : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                } transition-colors`}
+            >
+              {isLoading ? <Square size={20} /> : <Send size={20} />}
+            </button>
           </div>
-
-          {/* Selected Style Indicator - show for all styles including NORMAL */}
-          <motion.div
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center mt-2 ml-2 text-xs text-indigo-600 dark:text-indigo-400"
-          >
-            <PenLine size={12} className="mr-1" />
-            <span>
-              Style: {styleOptions.find((s) => s.id === selectedStyle)?.label}
-            </span>
-          </motion.div>
         </form>
+
+        <RemainingRequests remaining={remaining} total={15} />
       </div>
     </div>
   );

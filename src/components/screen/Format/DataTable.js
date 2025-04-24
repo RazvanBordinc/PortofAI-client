@@ -1,12 +1,5 @@
 import React, { useState } from "react";
-import {
-  Table,
-  SlidersHorizontal,
-  ChevronDown,
-  ChevronUp,
-  Filter,
-  Download,
-} from "lucide-react";
+import { Table, ChevronDown, ChevronUp, Filter } from "lucide-react";
 
 export default function DataTable({ data }) {
   // Default data if none is provided
@@ -67,8 +60,6 @@ export default function DataTable({ data }) {
   });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filters, setFilters] = useState({});
-  const [isExporting, setIsExporting] = useState(false);
-
   // Handle sorting
   const requestSort = (key) => {
     let direction = "ascending";
@@ -119,16 +110,6 @@ export default function DataTable({ data }) {
     });
 
     setRows(filteredData);
-  };
-
-  // Handle export
-  const handleExport = () => {
-    setIsExporting(true);
-    setTimeout(() => {
-      // In a real app, you would generate and download CSV/Excel here
-      setIsExporting(false);
-      alert("Data exported successfully!");
-    }, 1000);
   };
 
   // Get status badge
@@ -188,25 +169,6 @@ export default function DataTable({ data }) {
             title="Filter Data"
           >
             <Filter className="h-4 w-4" />
-          </button>
-          <button
-            onClick={handleExport}
-            className="text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 p-1 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors cursor-pointer"
-            title="Export Data"
-            disabled={isExporting}
-          >
-            {isExporting ? (
-              <div className="h-4 w-4 border-2 border-slate-600 dark:border-slate-400 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin"></div>
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-          </button>
-          <button
-            onClick={() => window.open("#", "_blank")}
-            className="text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 p-1 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors cursor-pointer"
-            title="Settings"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
           </button>
         </div>
       </div>

@@ -23,8 +23,8 @@ export default function InfoPage() {
         <div className="space-y-4">
           <p className="text-slate-800 dark:text-slate-200">
             This portfolio website is designed to showcase my skills and
-            experience in an interactive chat format. Here's how to navigate and
-            use the features:
+            experience in an interactive chat format. Here&apos;s how to
+            navigate and use the features:
           </p>
           <ul className="list-disc pl-5 space-y-2 text-slate-700 dark:text-slate-300">
             <li>
@@ -180,7 +180,8 @@ export default function InfoPage() {
               <span className="font-medium text-slate-900 dark:text-white">
                 Information Page:
               </span>{" "}
-              Details about the project's creation and technical implementation
+              Details about the project&apos;s creation and technical
+              implementation
             </li>
           </ul>
           <p className="text-slate-800 dark:text-slate-200">

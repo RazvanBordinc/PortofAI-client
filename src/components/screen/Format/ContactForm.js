@@ -139,7 +139,7 @@ export default function ContactForm({ data }) {
           </h4>
           <p className="text-slate-600 dark:text-slate-300 max-w-sm">
             Thanks for reaching out to {formData.recipientName}. Your message
-            has been sent successfully. You'll receive a response soon.
+            has been sent successfully. You&apos;ll receive a response soon.
           </p>
         </div>
       ) : (

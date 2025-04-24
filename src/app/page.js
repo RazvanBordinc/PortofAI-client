@@ -1,8 +1,8 @@
 /** @format */
 
-import ChatInterface from "@/components/screen/ChatInterface";
+import ChatbotIntegration from "@/components/screen/ChatbotIntegration";
 import React from "react";
 
 export default function page() {
-  return <ChatInterface />;
+  return <ChatbotIntegration />;
 }

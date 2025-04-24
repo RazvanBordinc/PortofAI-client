@@ -133,7 +133,7 @@ export default function Sidebar({ children }) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           onClick={toggleSidebar}
-          className="fixed top-2 left-2 z-40 p-3 text-black dark:text-indigo-500"
+          className="fixed top-2 left-2 z-40 p-3 text-black dark:text-white"
         >
           <PanelRightOpen size={30} />
         </motion.button>
@@ -178,7 +178,7 @@ export default function Sidebar({ children }) {
           </div>
           <button
             onClick={toggleSidebar}
-            className="p-2 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800/50 text-indigo-600 dark:text-indigo-300 transition-colors cursor-pointer"
+            className="p-2 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800/50 text-indigo-600 dark:text-white transition-colors cursor-pointer"
           >
             {isOpen ? (
               <PanelRightClose size={20} />

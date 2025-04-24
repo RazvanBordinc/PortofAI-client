@@ -51,8 +51,8 @@ export default function SettingsPage() {
                     Settings Coming Soon
                   </h2>
                   <p className="text-slate-700 dark:text-slate-300 max-w-lg mb-6">
-                    We're working on additional customization options for your
-                    PortofAI experience. Check back soon for updates!
+                    We&apos;re working on additional customization options for
+                    your PortofAI experience. Check back soon for updates!
                   </p>
 
                   {/* Preview of future settings */}
@@ -126,11 +126,6 @@ export default function SettingsPage() {
             </div>
           </div>
         </motion.div>
-
-        {/* Footer */}
-        <div className="text-center mt-8 text-slate-600 dark:text-slate-400 text-sm">
-          <p>© 2025 PortofAI • Designed & Developed with ❤️</p>
-        </div>
       </div>
     </div>
   );
