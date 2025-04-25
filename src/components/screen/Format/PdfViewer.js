@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FileText,
   Download,
@@ -8,55 +8,104 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  AlertCircle,
 } from "lucide-react";
 
 export default function PdfViewer({ data }) {
-  // Default data if none is provided
-  const defaultData = {
-    title: "Project Documentation.pdf",
-    totalPages: 5,
-    lastUpdated: "April 20, 2025",
-    content: [
-      {
-        pageNumber: 1,
-        heading: "Project Overview",
-        summary: "Introduction to the project scope and objectives",
-      },
-      {
-        pageNumber: 2,
-        heading: "Technical Architecture",
-        summary: "System design and component relationships",
-      },
-      {
-        pageNumber: 3,
-        heading: "Implementation Details",
-        summary: "Code structure and key algorithms",
-      },
-      {
-        pageNumber: 4,
-        heading: "User Guide",
-        summary: "Instructions for using the application",
-      },
-      {
-        pageNumber: 5,
-        heading: "Future Enhancements",
-        summary: "Planned features and improvements",
-      },
-    ],
-  };
-
-  // Use provided data or fallback to defaults
-  const pdfData = data || defaultData;
-
   // State for PDF viewer
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState("thumbnails"); // "thumbnails" or "outline"
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [pdfData, setPdfData] = useState(null);
+  const [error, setError] = useState(null);
+
+  // Process and validate data when component mounts
+  useEffect(() => {
+    try {
+      // Handle error state from parent
+      if (data && data.error) {
+        setError(data.error);
+        // Set default data for error state
+        setPdfData({
+          title: "Document Unavailable",
+          totalPages: 1,
+          lastUpdated: new Date().toLocaleDateString(),
+          content: [
+            {
+              pageNumber: 1,
+              heading: "Error Loading Document",
+              summary: "The document could not be loaded due to a data error.",
+            },
+          ],
+        });
+        return;
+      }
+
+      // Use provided data or fallback to defaults
+      if (data) {
+        setPdfData({
+          title: data.title || "Document.pdf",
+          totalPages: data.totalPages || 1,
+          lastUpdated: data.lastUpdated || new Date().toLocaleDateString(),
+          content: Array.isArray(data.content)
+            ? data.content
+            : [
+                {
+                  pageNumber: 1,
+                  heading: data.title || "Document Content",
+                  summary: "Document content is not properly formatted.",
+                },
+              ],
+        });
+      } else {
+        // Default data if none is provided
+        setPdfData({
+          title: "Sample Document.pdf",
+          totalPages: 3,
+          lastUpdated: new Date().toLocaleDateString(),
+          content: [
+            {
+              pageNumber: 1,
+              heading: "Document Overview",
+              summary: "This is a placeholder document.",
+            },
+            {
+              pageNumber: 2,
+              heading: "Content Section",
+              summary: "The actual document content is not available.",
+            },
+            {
+              pageNumber: 3,
+              heading: "Final Page",
+              summary: "This is the end of the placeholder document.",
+            },
+          ],
+        });
+      }
+    } catch (err) {
+      console.error("Error setting up PDF viewer:", err);
+      setError("Failed to initialize document viewer: " + err.message);
+
+      // Set default data for error state
+      setPdfData({
+        title: "Error Loading Document",
+        totalPages: 1,
+        lastUpdated: new Date().toLocaleDateString(),
+        content: [
+          {
+            pageNumber: 1,
+            heading: "Error",
+            summary: "The document could not be loaded.",
+          },
+        ],
+      });
+    }
+  }, [data]);
 
   // Handle page navigation
   const goToNextPage = () => {
-    if (currentPage < pdfData.totalPages) {
+    if (pdfData && currentPage < pdfData.totalPages) {
       setCurrentPage(currentPage + 1);
     }
   };
@@ -81,10 +130,24 @@ export default function PdfViewer({ data }) {
     }, 1500);
   };
 
-  // Get current page content
-  const currentPageContent =
-    pdfData.content.find((page) => page.pageNumber === currentPage) ||
-    pdfData.content[0];
+  // If data is still loading
+  if (!pdfData) {
+    return (
+      <div className="mt-3 bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden border border-slate-200 dark:border-slate-700 p-4 text-center">
+        <div className="animate-pulse">Loading document...</div>
+      </div>
+    );
+  }
+
+  // Get current page content safely
+  const currentPageContent = pdfData.content.find(
+    (page) => page.pageNumber === currentPage
+  ) ||
+    pdfData.content[0] || {
+      pageNumber: 1,
+      heading: "Empty Page",
+      summary: "No content available for this page.",
+    };
 
   return (
     <div
@@ -134,6 +197,14 @@ export default function PdfViewer({ data }) {
           )}
         </div>
       </div>
+
+      {/* Error notification */}
+      {error && (
+        <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-800/30 p-3 text-orange-800 dark:text-orange-300 flex items-center">
+          <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row">
         {/* Sidebar - Thumbnails or Outline */}

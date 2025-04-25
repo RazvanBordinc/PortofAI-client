@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Send,
   User,
@@ -10,43 +10,93 @@ import {
   Linkedin,
   Github,
   Twitter,
+  AlertCircle,
 } from "lucide-react";
 
 export default function ContactForm({ data }) {
-  // Default data if none is provided
-  const defaultData = {
-    title: "Contact Form",
-    recipientName: "John Doe",
-    recipientPosition: "Full Stack Developer",
-    socialLinks: [
-      {
-        platform: "LinkedIn",
-        url: "https://linkedin.com/in/johndoe",
-        icon: "linkedin",
-      },
-      { platform: "GitHub", url: "https://github.com/johndoe", icon: "github" },
-      {
-        platform: "Twitter",
-        url: "https://twitter.com/johndoe",
-        icon: "twitter",
-      },
-    ],
-    emailSubject: "Inquiry from Portfolio Website",
-  };
-
-  // Use provided data or fallback to defaults
-  const formData = data || defaultData;
-
+  // State
   const [formState, setFormState] = useState({
     name: "",
     email: "",
     phone: "",
     message: "",
   });
-
+  const [formData, setFormData] = useState(null);
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dataError, setDataError] = useState(null);
+
+  // Process and validate data when component mounts
+  useEffect(() => {
+    try {
+      // Handle error state from parent
+      if (data && data.error) {
+        setDataError(data.error);
+        // Set default data for error state
+        setFormData({
+          title: "Contact Form",
+          recipientName: "Portfolio Owner",
+          recipientPosition: "Full Stack Developer",
+          socialLinks: [
+            {
+              platform: "LinkedIn",
+              url: "#",
+              icon: "linkedin",
+            },
+          ],
+          emailSubject: "Contact from Portfolio Website",
+        });
+        return;
+      }
+
+      // Default data if none is provided
+      const defaultData = {
+        title: "Contact Form",
+        recipientName: "John Doe",
+        recipientPosition: "Full Stack Developer",
+        socialLinks: [
+          {
+            platform: "LinkedIn",
+            url: "https://linkedin.com/in/johndoe",
+            icon: "linkedin",
+          },
+          {
+            platform: "GitHub",
+            url: "https://github.com/johndoe",
+            icon: "github",
+          },
+          {
+            platform: "Twitter",
+            url: "https://twitter.com/johndoe",
+            icon: "twitter",
+          },
+        ],
+        emailSubject: "Inquiry from Portfolio Website",
+      };
+
+      // Use provided data or fallback to defaults
+      setFormData(data || defaultData);
+    } catch (err) {
+      console.error("Error setting up contact form:", err);
+      setDataError("Failed to initialize contact form: " + err.message);
+
+      // Set default data for error state
+      setFormData({
+        title: "Contact Form",
+        recipientName: "Portfolio Owner",
+        recipientPosition: "Full Stack Developer",
+        socialLinks: [
+          {
+            platform: "LinkedIn",
+            url: "#",
+            icon: "linkedin",
+          },
+        ],
+        emailSubject: "Contact from Portfolio Website",
+      });
+    }
+  }, [data]);
 
   // Form validation
   const validateForm = () => {
@@ -108,6 +158,8 @@ export default function ContactForm({ data }) {
 
   // Get social icon based on platform
   const getSocialIcon = (platform) => {
+    if (!platform) return <ExternalLink size={16} />;
+
     switch (platform.toLowerCase()) {
       case "linkedin":
         return <Linkedin size={16} />;
@@ -120,14 +172,31 @@ export default function ContactForm({ data }) {
     }
   };
 
+  // Loading state
+  if (!formData) {
+    return (
+      <div className="mt-3 bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden border border-slate-200 dark:border-slate-700 p-4 text-center">
+        <div className="animate-pulse">Loading contact form...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-3 bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden border border-slate-200 dark:border-slate-700">
       <div className="p-4 bg-indigo-50 dark:bg-indigo-900/30 border-b border-slate-200 dark:border-slate-700">
         <h3 className="font-medium text-indigo-600 dark:text-indigo-400 flex items-center">
           <Mail className="mr-2 h-4 w-4" />
-          {formData.title}
+          {formData.title || "Contact Form"}
         </h3>
       </div>
+
+      {/* Error notification */}
+      {dataError && (
+        <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-800/30 p-3 text-orange-800 dark:text-orange-300 flex items-center">
+          <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+          <span>{dataError}</span>
+        </div>
+      )}
 
       {submitted ? (
         <div className="p-6 flex flex-col items-center justify-center text-center">
@@ -138,8 +207,9 @@ export default function ContactForm({ data }) {
             Message Sent!
           </h4>
           <p className="text-slate-600 dark:text-slate-300 max-w-sm">
-            Thanks for reaching out to {formData.recipientName}. Your message
-            has been sent successfully. You&apos;ll receive a response soon.
+            Thanks for reaching out to {formData.recipientName || "us"}. Your
+            message has been sent successfully. You&apos;ll receive a response
+            soon.
           </p>
         </div>
       ) : (
@@ -317,35 +387,37 @@ export default function ContactForm({ data }) {
                   <User className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <h4 className="text-lg font-medium text-slate-900 dark:text-white">
-                  {formData.recipientName}
+                  {formData.recipientName || "Portfolio Owner"}
                 </h4>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {formData.recipientPosition}
+                  {formData.recipientPosition || "Full Stack Developer"}
                 </p>
               </div>
 
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
-                <h5 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-                  Connect with me
-                </h5>
-                <ul className="space-y-2">
-                  {formData.socialLinks.map((link, index) => (
-                    <li key={index}>
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center py-1 px-2 rounded-md text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                      >
-                        <span className="w-5 h-5 flex items-center justify-center mr-2 text-indigo-600 dark:text-indigo-400">
-                          {getSocialIcon(link.icon)}
-                        </span>
-                        {link.platform}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {formData.socialLinks && formData.socialLinks.length > 0 && (
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                  <h5 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                    Connect with me
+                  </h5>
+                  <ul className="space-y-2">
+                    {formData.socialLinks.map((link, index) => (
+                      <li key={index}>
+                        <a
+                          href={link.url || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center py-1 px-2 rounded-md text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        >
+                          <span className="w-5 h-5 flex items-center justify-center mr-2 text-indigo-600 dark:text-indigo-400">
+                            {getSocialIcon(link.icon || link.platform)}
+                          </span>
+                          {link.platform || "Connect"}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="border-t border-slate-200 dark:border-slate-700 pt-4 text-sm text-slate-500 dark:text-slate-400">
                 <p>

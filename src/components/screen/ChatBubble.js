@@ -11,6 +11,9 @@ export default function ChatBubble({ message }) {
     setIsAI(message.sender !== "user");
   }, [message]);
 
+  // Check if the message has JSON parsing errors
+  const hasParseError = message.parseError || false;
+
   return (
     <div className={`flex ${!isAI ? "justify-end" : "justify-start"}`}>
       {/* Avatar for AI - only shown for AI messages */}
@@ -29,7 +32,7 @@ export default function ChatBubble({ message }) {
           ${
             !isAI
               ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-tr-none"
-              : message.isError
+              : message.isError || hasParseError
               ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-tl-none"
               : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none"
           }
@@ -47,12 +50,26 @@ export default function ChatBubble({ message }) {
           </p>
         )}
 
+        {/* Parse Error Notification (if present) */}
+        {hasParseError && (
+          <div className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+            <details>
+              <summary className="cursor-pointer">
+                Data parsing error (click to see details)
+              </summary>
+              <pre className="mt-1 text-xs whitespace-pre-wrap overflow-x-auto max-h-32 p-1 bg-amber-50 dark:bg-amber-900/20 rounded">
+                {message.parseError}
+              </pre>
+            </details>
+          </div>
+        )}
+
         {/* Timestamp */}
         <div
           className={`text-xs mt-1 ${
             !isAI
               ? "text-indigo-200"
-              : message.isError
+              : message.isError || hasParseError
               ? "text-red-500 dark:text-red-400"
               : "text-slate-500 dark:text-slate-400"
           }`}
