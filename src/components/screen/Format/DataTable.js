@@ -32,11 +32,16 @@ export default function DataTable({ data }) {
       // Handle null or undefined data
       if (!inputData) {
         setError("No data provided");
-        setTableData({
-          title: "No Data Available",
-          columns: [],
-          rows: [],
-        });
+        setTableData(createDefaultTableData());
+        setRows([]);
+        return;
+      }
+
+      // Handle error object passed from parent
+      if (inputData.error) {
+        setError(inputData.error);
+        setTableData(createDefaultTableData());
+        setRows([]);
         return;
       }
 
@@ -48,11 +53,8 @@ export default function DataTable({ data }) {
         } catch (err) {
           console.error("Failed to parse string data:", err);
           setError("Invalid JSON data");
-          setTableData({
-            title: "Data Error",
-            columns: [],
-            rows: [],
-          });
+          setTableData(createDefaultTableData());
+          setRows([]);
           return;
         }
       }
@@ -152,7 +154,7 @@ export default function DataTable({ data }) {
       }
 
       // Ensure columns have id and label properties
-      formattedData.columns = formattedData.columns.map((col) => {
+      formattedData.columns = (formattedData.columns || []).map((col) => {
         if (typeof col === "string") {
           return { id: col, label: col.charAt(0).toUpperCase() + col.slice(1) };
         }
@@ -163,6 +165,24 @@ export default function DataTable({ data }) {
         };
       });
 
+      // Validate columns and rows
+      if (!formattedData.columns || formattedData.columns.length === 0) {
+        setError("No columns defined in table data");
+        // Add a default column if none exists
+        formattedData.columns = [
+          { id: "col1", label: "Column 1" },
+          { id: "col2", label: "Column 2" },
+        ];
+      }
+
+      if (!formattedData.rows || formattedData.rows.length === 0) {
+        console.warn("No rows found in table data");
+        // Don't set error, just show empty table
+        formattedData.rows = [
+          { col1: "No data available", col2: "Please try again" },
+        ];
+      }
+
       console.log("Processed table data:", formattedData);
 
       // Set the processed data
@@ -171,29 +191,53 @@ export default function DataTable({ data }) {
     } catch (err) {
       console.error("Error processing table data:", err);
       setError(`Error processing data: ${err.message}`);
-      setTableData({
-        title: "Data Error",
-        columns: [],
-        rows: [],
-      });
+      setTableData(createDefaultTableData());
+      setRows([]);
     }
+  };
+
+  // Create default table data when actual data can't be processed
+  const createDefaultTableData = () => {
+    return {
+      title: "Data Table",
+      columns: [
+        { id: "col1", label: "Column 1", sortable: true },
+        { id: "col2", label: "Column 2", sortable: true },
+      ],
+      rows: [{ col1: "No data available", col2: "Please try again" }],
+    };
   };
 
   // Handle sorting
   const requestSort = (key) => {
+    if (!key) return;
+
     let direction = "ascending";
     if (sortConfig.key === key && sortConfig.direction === "ascending") {
       direction = "descending";
     }
 
+    // Create a copy of rows to sort
     const sortedData = [...rows].sort((a, b) => {
-      if (a[key] === undefined || a[key] === null) return 1;
-      if (b[key] === undefined || b[key] === null) return -1;
+      // Handle cases where key doesn't exist in objects
+      const aValue = a[key] ?? "";
+      const bValue = b[key] ?? "";
 
-      if (a[key] < b[key]) {
+      // Handle null and undefined values
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+
+      // Handle different types
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        return direction === "ascending"
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+
+      if (aValue < bValue) {
         return direction === "ascending" ? -1 : 1;
       }
-      if (a[key] > b[key]) {
+      if (aValue > bValue) {
         return direction === "ascending" ? 1 : -1;
       }
       return 0;
@@ -218,25 +262,34 @@ export default function DataTable({ data }) {
 
   // Handle filtering
   const handleFilterChange = (columnId, value) => {
-    const newFilters = { ...filters, [columnId]: value };
-    if (!value) delete newFilters[columnId];
-    setFilters(newFilters);
+    try {
+      if (!columnId) return;
 
-    // Apply filters
-    if (tableData && tableData.rows) {
-      const filteredData = tableData.rows.filter((row) => {
-        return Object.keys(newFilters).every((key) => {
-          const filterValue = newFilters[key].toLowerCase();
-          // Handle case where the property might not exist
-          const cellValue =
-            row[key] !== undefined && row[key] !== null
-              ? String(row[key]).toLowerCase()
-              : "";
-          return cellValue.includes(filterValue);
+      const newFilters = { ...filters, [columnId]: value };
+      if (!value) delete newFilters[columnId];
+      setFilters(newFilters);
+
+      // Apply filters - check if tableData exists first
+      if (tableData && tableData.rows) {
+        const filteredData = tableData.rows.filter((row) => {
+          return Object.keys(newFilters).every((key) => {
+            if (!row) return false;
+
+            const filterValue = newFilters[key].toLowerCase();
+            // Handle case where the property might not exist
+            const cellValue =
+              row[key] !== undefined && row[key] !== null
+                ? String(row[key]).toLowerCase()
+                : "";
+            return cellValue.includes(filterValue);
+          });
         });
-      });
 
-      setRows(filteredData);
+        setRows(filteredData);
+      }
+    } catch (error) {
+      console.error("Error applying filters:", error);
+      // Don't change the rows if there's an error
     }
   };
 
@@ -325,6 +378,12 @@ export default function DataTable({ data }) {
     );
   };
 
+  // Safely access cell value
+  const getCellValue = (row, columnId) => {
+    if (!row || row[columnId] === undefined) return "";
+    return String(row[columnId]);
+  };
+
   // Loading state
   if (!tableData) {
     return (
@@ -361,9 +420,9 @@ export default function DataTable({ data }) {
 
       {/* Error state */}
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 flex items-center">
+        <div className="p-4 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 flex items-center">
           <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-          <span>{error}</span>
+          <span>Note: Using default table data. {error}</span>
         </div>
       )}
 
@@ -443,9 +502,9 @@ export default function DataTable({ data }) {
                         className="px-6 py-4 whitespace-nowrap text-sm"
                       >
                         {isStatusColumn(column.id, column.label) ? (
-                          getStatusBadge(row[column.id])
+                          getStatusBadge(getCellValue(row, column.id))
                         ) : isDateColumn(column.id, column.label) ? (
-                          formatDate(row[column.id])
+                          formatDate(getCellValue(row, column.id))
                         ) : (
                           <span
                             className={
@@ -454,9 +513,7 @@ export default function DataTable({ data }) {
                                 : "text-slate-700 dark:text-slate-300"
                             }
                           >
-                            {row[column.id] !== undefined
-                              ? String(row[column.id])
-                              : ""}
+                            {getCellValue(row, column.id)}
                           </span>
                         )}
                       </td>

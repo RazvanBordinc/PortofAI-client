@@ -5,7 +5,6 @@ import {
   Mail,
   MessageSquare,
   Phone,
-  MapPin,
   ExternalLink,
   Linkedin,
   Github,
@@ -30,73 +29,64 @@ export default function ContactForm({ data }) {
   // Process and validate data when component mounts
   useEffect(() => {
     try {
+      console.log("Contact form initializing with data:", data);
+
       // Handle error state from parent
-      if (data && data.error) {
-        setDataError(data.error);
+      if (!data || (data && data.error)) {
+        setDataError(data?.error || "Invalid data provided");
         // Set default data for error state
-        setFormData({
-          title: "Contact Form",
-          recipientName: "Portfolio Owner",
-          recipientPosition: "Full Stack Developer",
-          socialLinks: [
+        setFormData(createDefaultFormData());
+        return;
+      }
+
+      // Validate required fields
+      if (!isValidContactData(data)) {
+        setDataError("Contact data is missing required fields");
+        setFormData(createDefaultFormData(data));
+        return;
+      }
+
+      // Use provided data
+      setFormData(data);
+    } catch (err) {
+      console.error("Error setting up contact form:", err);
+      setDataError("Failed to initialize contact form: " + err.message);
+
+      // Set default data for error state
+      setFormData(createDefaultFormData());
+    }
+  }, [data]);
+
+  // Validate contact data has all required fields
+  const isValidContactData = (data) => {
+    return (
+      data &&
+      data.recipientName &&
+      typeof data.recipientName === "string" &&
+      (data.socialLinks === undefined || Array.isArray(data.socialLinks))
+    );
+  };
+
+  // Create default form data, optionally preserving valid fields from provided data
+  const createDefaultFormData = (partialData = {}) => {
+    return {
+      title: partialData.title || "Contact Form",
+      recipientName: partialData.recipientName || "Portfolio Owner",
+      recipientPosition:
+        partialData.recipientPosition || "Full Stack Developer",
+      socialLinks: Array.isArray(partialData.socialLinks)
+        ? partialData.socialLinks
+        : [
             {
               platform: "LinkedIn",
               url: "#",
               icon: "linkedin",
             },
           ],
-          emailSubject: "Contact from Portfolio Website",
-        });
-        return;
-      }
-
-      // Default data if none is provided
-      const defaultData = {
-        title: "Contact Form",
-        recipientName: "John Doe",
-        recipientPosition: "Full Stack Developer",
-        socialLinks: [
-          {
-            platform: "LinkedIn",
-            url: "https://linkedin.com/in/johndoe",
-            icon: "linkedin",
-          },
-          {
-            platform: "GitHub",
-            url: "https://github.com/johndoe",
-            icon: "github",
-          },
-          {
-            platform: "Twitter",
-            url: "https://twitter.com/johndoe",
-            icon: "twitter",
-          },
-        ],
-        emailSubject: "Inquiry from Portfolio Website",
-      };
-
-      // Use provided data or fallback to defaults
-      setFormData(data || defaultData);
-    } catch (err) {
-      console.error("Error setting up contact form:", err);
-      setDataError("Failed to initialize contact form: " + err.message);
-
-      // Set default data for error state
-      setFormData({
-        title: "Contact Form",
-        recipientName: "Portfolio Owner",
-        recipientPosition: "Full Stack Developer",
-        socialLinks: [
-          {
-            platform: "LinkedIn",
-            url: "#",
-            icon: "linkedin",
-          },
-        ],
-        emailSubject: "Contact from Portfolio Website",
-      });
-    }
-  }, [data]);
+      emailSubject:
+        partialData.emailSubject || "Contact from Portfolio Website",
+    };
+  };
 
   // Form validation
   const validateForm = () => {
@@ -194,7 +184,7 @@ export default function ContactForm({ data }) {
       {dataError && (
         <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-800/30 p-3 text-orange-800 dark:text-orange-300 flex items-center">
           <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-          <span>{dataError}</span>
+          <span>Note: Using default contact form template. {dataError}</span>
         </div>
       )}
 

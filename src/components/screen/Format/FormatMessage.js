@@ -8,7 +8,14 @@ export default function FormatMessage({ message }) {
   const [parseError, setParseError] = useState(null);
   const [rawMessage, setRawMessage] = useState(null);
 
-  // Wrap processMessage in useCallback to prevent infinite re-renders
+  // Process the message when it changes
+  useEffect(() => {
+    if (message) {
+      processMessage(message);
+    }
+  }, [message]);
+
+  // Wrap in useCallback to prevent infinite re-renders
   const processMessage = useCallback((originalMessage) => {
     console.log("FormatMessage processing:", originalMessage);
     setRawMessage(originalMessage); // Save the raw message for debugging/fallback
@@ -27,51 +34,57 @@ export default function FormatMessage({ message }) {
         const { cleanedText, extractedData, formatType } =
           extractFormatAndData(originalMessage);
         processed.text = cleanedText;
-        processed.data = extractedData;
         processed.format = formatType || "text";
+        processed.data = extractedData;
+        return setProcessedMessage(processed);
       }
+
       // Handle message as object (new format)
-      else if (
-        typeof originalMessage === "object" &&
-        originalMessage !== null
-      ) {
+      if (typeof originalMessage === "object" && originalMessage !== null) {
         console.log("Processing object message:", originalMessage);
 
+        // Handle case where content is the object containing text, format, etc.
+        if (
+          originalMessage.content &&
+          typeof originalMessage.content === "object"
+        ) {
+          if (
+            originalMessage.content.text ||
+            originalMessage.content.text === ""
+          ) {
+            processed.text = originalMessage.content.text;
+            processed.format = originalMessage.content.format || "text";
+            processed.data = originalMessage.content.data || null;
+            return setProcessedMessage(processed);
+          }
+        }
+
         // Get text content
-        if (originalMessage.text || originalMessage.text === "") {
+        if (originalMessage.text !== undefined) {
           const { cleanedText, extractedData, formatType } =
             extractFormatAndData(originalMessage.text);
           processed.text = cleanedText;
 
-          // If data was found in text and not provided separately, use it
-          if (extractedData && !originalMessage.data) {
-            processed.data = extractedData;
-          } else {
-            processed.data = originalMessage.data || null;
-          }
-
           // Format can come from: 1) the format tag in text, 2) the format property in the object
           processed.format = formatType || originalMessage.format || "text";
-        } else {
-          // No text property, try to convert whole object to string
-          console.warn("Message object has no text property:", originalMessage);
-          processed.text = "Message format error";
-          processed.format = originalMessage.format || "text";
-          processed.data = originalMessage.data || null;
+
+          // Use data from extracted or provided
+          processed.data = extractedData || originalMessage.data || null;
+          return setProcessedMessage(processed);
         }
-      } else {
-        // Fallback for unexpected input
-        console.error("Unexpected message format:", originalMessage);
-        processed.text = "Error: Unprocessable message format";
+
+        // If no text property, try to convert whole object to string
+        console.warn("Message object has no text property:", originalMessage);
+        processed.text = "Message format error";
+        processed.format = originalMessage.format || "text";
+        processed.data = originalMessage.data || null;
+        return setProcessedMessage(processed);
       }
 
-      console.log("Processed message:", {
-        format: processed.format,
-        dataAvailable: processed.data !== null,
-        textLength: processed.text?.length || 0,
-      });
-
-      setProcessedMessage(processed);
+      // Fallback for unexpected input
+      console.error("Unexpected message format:", originalMessage);
+      processed.text = "Error: Unprocessable message format";
+      return setProcessedMessage(processed);
     } catch (error) {
       console.error("Error processing message:", error);
       setParseError(error.message);
@@ -127,6 +140,7 @@ export default function FormatMessage({ message }) {
       if (dataMatch && dataMatch[1]) {
         try {
           let jsonStr = dataMatch[1].trim();
+
           // Log the first part of the JSON string for debugging
           console.log(
             "Raw JSON data (first 100 chars):",
@@ -134,11 +148,7 @@ export default function FormatMessage({ message }) {
           );
 
           // Try to clean up common JSON issues
-          jsonStr = jsonStr
-            .replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":') // Add quotes to keys without quotes
-            .replace(/:\s*'([^']*)'/g, ':"$1"') // Replace single quotes with double quotes
-            .replace(/,\s*}/g, "}") // Remove trailing commas
-            .replace(/,\s*]/g, "]"); // Remove trailing commas in arrays
+          jsonStr = cleanJsonString(jsonStr);
 
           // Try parsing the cleaned JSON
           extractedData = JSON.parse(jsonStr);
@@ -149,12 +159,21 @@ export default function FormatMessage({ message }) {
             "Error parsing JSON data:",
             error,
             "JSON string:",
-            dataMatch[1]
+            dataMatch[1].substring(0, 100)
           );
-          extractedData = {
-            error: "Could not parse JSON data: " + error.message,
-          };
+
+          // Create fallback data based on format type
+          extractedData = createFallbackData(formatType);
+
+          // Remove the problematic data tag from the text
+          cleanedText = cleanedText.replace(dataMatch[0], "");
+          cleanedText +=
+            "\n\nNote: There was an issue with the data format. Using default template.";
         }
+      } else if (formatType && formatType !== "text") {
+        // If a non-text format is specified but no data is provided, create fallback data
+        console.warn(`No data found for ${formatType} format, using fallback`);
+        extractedData = createFallbackData(formatType);
       }
 
       return {
@@ -166,18 +185,71 @@ export default function FormatMessage({ message }) {
       console.error("Error in extractFormatAndData:", error);
       return {
         cleanedText: text,
-        extractedData: { error: error.message },
-        formatType: null,
+        extractedData: createFallbackData("text"),
+        formatType: "text",
       };
     }
   };
 
-  // Process the message when it changes
-  useEffect(() => {
-    if (message) {
-      processMessage(message);
+  // Clean up a JSON string to fix common formatting errors
+  const cleanJsonString = (jsonStr) => {
+    if (!jsonStr) return jsonStr;
+
+    // Replace JavaScript-style property names (without quotes) with JSON-style (with quotes)
+    let cleaned = jsonStr.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
+
+    // Replace single quotes with double quotes (handling escaped quotes)
+    cleaned = cleaned
+      .replace(/\\'/g, "\\TEMP_QUOTE") // Temporarily replace escaped single quotes
+      .replace(/'/g, '"') // Replace all single quotes with double quotes
+      .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
+
+    // Remove trailing commas in objects and arrays
+    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+
+    return cleaned;
+  };
+
+  // Create fallback data based on format type
+  const createFallbackData = (formatType) => {
+    switch (formatType) {
+      case "table":
+        return {
+          title: "Data Table",
+          columns: [
+            { id: "col1", label: "Column 1" },
+            { id: "col2", label: "Column 2" },
+          ],
+          rows: [{ col1: "No data available", col2: "Please try again" }],
+        };
+      case "contact":
+        return {
+          title: "Contact Form",
+          recipientName: "Portfolio Owner",
+          recipientPosition: "Full Stack Developer",
+          emailSubject: "Contact from Portfolio Website",
+          socialLinks: [{ platform: "LinkedIn", url: "#", icon: "linkedin" }],
+        };
+      case "pdf":
+        return {
+          title: "Document.pdf",
+          totalPages: 1,
+          lastUpdated: new Date().toLocaleDateString("en-US", {
+            month: "long",
+            year: "numeric",
+          }),
+          content: [
+            {
+              pageNumber: 1,
+              heading: "Document Content",
+              summary: "Document content could not be loaded.",
+            },
+          ],
+        };
+      default:
+        return null;
     }
-  }, [message, processMessage]);
+  };
 
   // If message is still being processed
   if (!processedMessage) {
@@ -204,19 +276,10 @@ export default function FormatMessage({ message }) {
       console.error("Error rendering format component:", error);
       return (
         <div className="mt-2 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md">
-          <details>
-            <summary className="font-medium cursor-pointer">
-              Error rendering {processedMessage.format} component
-            </summary>
-            <p className="mt-2">{error.message}</p>
-            {rawMessage && (
-              <div className="mt-3 p-2 bg-slate-100 dark:bg-slate-800 rounded border border-red-200 dark:border-red-800 overflow-auto">
-                <pre className="text-xs whitespace-pre-wrap">
-                  {JSON.stringify(rawMessage, null, 2)}
-                </pre>
-              </div>
-            )}
-          </details>
+          <p className="font-medium">
+            Error rendering {processedMessage.format} component
+          </p>
+          <p className="mt-2">{error.message}</p>
         </div>
       );
     }
@@ -235,25 +298,11 @@ export default function FormatMessage({ message }) {
 
         {/* Then show error message */}
         <div className="mt-2 p-3 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-md">
-          <details>
-            <summary className="font-medium cursor-pointer">
-              Data format error (click to see details)
-            </summary>
-            <p className="mt-2 text-sm">{parseError}</p>
-            {rawMessage && (
-              <div className="mt-3 p-2 bg-slate-100 dark:bg-slate-800 rounded border border-orange-200 dark:border-orange-800 overflow-auto">
-                <p className="text-xs mb-1 opacity-70">Raw message:</p>
-                <pre className="text-xs whitespace-pre-wrap">
-                  {typeof rawMessage === "string"
-                    ? rawMessage
-                    : JSON.stringify(rawMessage, null, 2)}
-                </pre>
-              </div>
-            )}
-          </details>
+          <p className="font-medium">Data format error</p>
+          <p className="mt-1 text-sm">{parseError}</p>
         </div>
 
-        {/* Still try to render the component if we have format and fallback data */}
+        {/* Still try to render the component with fallback data */}
         {processedMessage.format &&
           processedMessage.format !== "text" &&
           renderFormatComponent()}

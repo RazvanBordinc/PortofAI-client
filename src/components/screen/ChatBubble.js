@@ -14,6 +14,32 @@ export default function ChatBubble({ message }) {
   // Check if the message has JSON parsing errors
   const hasParseError = message.parseError || false;
 
+  // Extract the content properly - handle both string and object formats
+  const getMessageContent = () => {
+    const content = message.content;
+
+    if (typeof content === "string") {
+      return content;
+    }
+
+    if (typeof content === "object" && content !== null) {
+      // If content has a text property, use that
+      if (content.text !== undefined) {
+        return content.text;
+      }
+
+      // If it's some other object, convert to a readable string
+      try {
+        return JSON.stringify(content);
+      } catch (e) {
+        return "Error displaying message content";
+      }
+    }
+
+    // Fallback for unexpected content type
+    return String(content || "");
+  };
+
   return (
     <div className={`flex ${!isAI ? "justify-end" : "justify-start"}`}>
       {/* Avatar for AI - only shown for AI messages */}
@@ -44,9 +70,7 @@ export default function ChatBubble({ message }) {
           <FormatMessage message={message.content} />
         ) : (
           <p className="whitespace-pre-wrap leading-relaxed">
-            {typeof message.content === "object"
-              ? message.content.text
-              : message.content}
+            {getMessageContent()}
           </p>
         )}
 

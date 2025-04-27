@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useEffect, useState, useCallback } from "react";
 import ChatBubble from "./ChatBubble";
 
@@ -27,48 +25,53 @@ export default function ChatMessage({ message }) {
           data: processedMsg.content.data || null,
         };
 
-        // Check if the text contains embedded JSON data
-        if (content.text) {
+        // Convert to the expected format
+        processedMsg.content = content;
+      } else if (typeof processedMsg.content === "string") {
+        // Extract format type from text if present
+        const formatMatch = processedMsg.content.match(
+          /\[format:(text|table|contact|pdf)\]/i
+        );
+
+        const format = formatMatch ? formatMatch[1].toLowerCase() : "text";
+
+        // Extract data from text if present
+        const dataMatch = processedMsg.content.match(/\[data:([\s\S]*?)\]/);
+        let data = null;
+
+        if (dataMatch) {
           try {
-            const { cleanedText, extractedData } = extractJsonData(
-              content.text
-            );
-
-            if (extractedData && !content.data) {
-              content.data = extractedData;
-            }
-
-            content.text = cleanedText;
+            const jsonStr = dataMatch[1].trim();
+            data = JSON.parse(cleanJsonString(jsonStr));
           } catch (error) {
-            console.error("Error extracting JSON data:", error);
-            setParseError(error.message);
-            // Keep the original text if extraction fails
+            console.error("JSON parsing error in content:", error);
+            // Create fallback data
+            data = { error: "Could not parse JSON data: " + error.message };
           }
         }
 
-        processedMsg.content = content;
-      } else {
-        // It's a string or something else, convert to our expected structure
-        const contentStr = String(processedMsg.content || "");
-        try {
-          const { cleanedText, extractedData, formatType } =
-            extractJsonData(contentStr);
+        // Clean text (remove format and data tags)
+        let cleanedText = processedMsg.content
+          .replace(/\[format:(text|table|contact|pdf)\]/gi, "")
+          .replace(/\[\/format\]/gi, "");
 
-          processedMsg.content = {
-            text: cleanedText,
-            format: formatType || "text",
-            data: extractedData,
-          };
-        } catch (error) {
-          console.error("Error processing content string:", error);
-          setParseError(error.message);
-          // Use original content as fallback
-          processedMsg.content = {
-            text: contentStr,
-            format: "text",
-            data: null,
-          };
+        if (dataMatch) {
+          cleanedText = cleanedText.replace(dataMatch[0], "");
         }
+
+        // Set the processed content
+        processedMsg.content = {
+          text: cleanedText.trim(),
+          format: format,
+          data: data,
+        };
+      } else {
+        // For other cases, default to text format
+        processedMsg.content = {
+          text: String(processedMsg.content || ""),
+          format: "text",
+          data: null,
+        };
       }
 
       setProcessedMessage(processedMsg);
@@ -80,61 +83,36 @@ export default function ChatMessage({ message }) {
     }
   }, []);
 
-  // Extract JSON data and clean up the text
-  const extractJsonData = (text) => {
-    if (typeof text !== "string")
-      return { cleanedText: text, extractedData: null, formatType: null };
+  // Clean up JSON string for parsing
+  const cleanJsonString = (jsonStr) => {
+    if (!jsonStr) return jsonStr;
 
-    let cleanedText = text;
-    let extractedData = null;
-    let formatType = null;
+    // Replace JavaScript-style property names (without quotes) with JSON-style (with quotes)
+    let cleaned = jsonStr.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
 
-    // Extract format type
-    const formatMatch = text.match(/\[format:(text|table|contact|pdf)\]/i);
-    if (formatMatch) {
-      formatType = formatMatch[1].toLowerCase();
-      cleanedText = cleanedText.replace(formatMatch[0], "");
-    }
+    // Replace single quotes with double quotes (handling escaped quotes)
+    cleaned = cleaned
+      .replace(/\\'/g, "\\TEMP_QUOTE") // Temporarily replace escaped single quotes
+      .replace(/'/g, '"') // Replace all single quotes with double quotes
+      .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
 
-    // Remove [/format] tag if present
-    cleanedText = cleanedText.replace(/\[\/format\]/g, "");
+    // Remove trailing commas in objects and arrays
+    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
 
-    // Extract JSON data
-    const dataRegex = /\[data:([\s\S]*?)\]/;
-    const dataMatch = text.match(dataRegex);
-
-    if (dataMatch && dataMatch[1]) {
-      try {
-        let jsonStr = dataMatch[1].trim();
-        console.log(
-          "Raw JSON data (first 100 chars):",
-          jsonStr.substring(0, 100)
-        );
-
-        // Try to clean up common JSON issues
-        jsonStr = jsonStr
-          .replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":') // Add quotes to keys without quotes
-          .replace(/:\s*'([^']*)'/g, ':"$1"') // Replace single quotes with double quotes
-          .replace(/,\s*}/g, "}") // Remove trailing commas
-          .replace(/,\s*]/g, "]"); // Remove trailing commas in arrays
-
-        extractedData = JSON.parse(jsonStr);
-        cleanedText = cleanedText.replace(dataMatch[0], "");
-        console.log("Successfully parsed JSON data");
-      } catch (e) {
-        console.error("Failed to parse JSON data:", e);
-        console.log("Problematic JSON:", dataMatch[1]);
-        throw new Error(`JSON parsing error: ${e.message}`);
-      }
-    }
-
-    return { cleanedText: cleanedText.trim(), extractedData, formatType };
+    return cleaned;
   };
 
+  // Process the message when it changes
   useEffect(() => {
-    // Process the message once when it's received
-    processMessage(message);
+    if (message) {
+      processMessage(message);
+    }
   }, [message, processMessage]);
+
+  // If message is still being processed
+  if (!processedMessage) {
+    return <div className="animate-pulse">Processing message...</div>;
+  }
 
   // If there's a parsing error, pass it along with the message
   if (parseError && processedMessage) {
