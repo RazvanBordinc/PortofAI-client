@@ -21,24 +21,6 @@ export default function ChatHeader() {
             PortofAI Chat
           </h1>
         </div>
-
-        <div className="flex items-center space-x-1">
-          <motion.div
-            className="h-2 w-2 rounded-full bg-green-500"
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.7, 1, 0.7],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              repeatType: "reverse",
-            }}
-          />
-          <span className="text-sm text-slate-600 dark:text-slate-400">
-            Online
-          </span>
-        </div>
       </div>
     </motion.div>
   );

@@ -12,7 +12,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <ThemeProvider>
+      <ThemeProvider defaultTheme="dark" enableSystem={false}>
         <body>
           <main className="bg-white dark:bg-zinc-900 min-h-screen">
             <Sidebar>{children}</Sidebar>
