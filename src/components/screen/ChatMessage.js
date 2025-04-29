@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import ChatBubble from "./ChatBubble";
 import StreamingBubble from "./StreamingBubble"; // Component for streaming text
+import { enhanceMessage } from "../../lib/utils/urlDetector"; // Import the helper function
 
 export default function ChatMessage({ message }) {
   const [processedMessage, setProcessedMessage] = useState(null);
@@ -28,6 +29,9 @@ export default function ChatMessage({ message }) {
         setProcessedMessage(processedMsg);
         return;
       }
+
+      // Enhance the message to handle URLs and emails
+      processedMsg = enhanceMessage(processedMsg);
 
       // Extract content properly
       if (

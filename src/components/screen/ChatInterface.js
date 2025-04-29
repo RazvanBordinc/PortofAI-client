@@ -283,6 +283,9 @@ export default function ChatInterface() {
       cleanedText = cleanedText.replace(/\[data:[\s\S]*?\]/s, "");
     }
 
+    // Process URLs and email addresses in the text
+    cleanedText = processUrlsAndEmails(cleanedText);
+
     return {
       text: cleanedText.trim(),
       format,
@@ -306,7 +309,61 @@ export default function ChatInterface() {
       handleSendMessage();
     }, 10);
   };
+  const processUrlsAndEmails = (text) => {
+    if (typeof text !== "string") return text;
 
+    // Process plain URLs to markdown links
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    text = text.replace(urlRegex, (url) => {
+      // Skip if it already appears to be in a markdown link [text](url)
+      const prevText = text.substring(
+        Math.max(0, text.indexOf(url) - 20),
+        text.indexOf(url)
+      );
+      if (
+        prevText.includes("[") &&
+        text.substring(text.indexOf(url) + url.length).includes(")")
+      ) {
+        return url;
+      }
+
+      // Check if URL has parameters or path, if no then trim the trailing slash
+      let cleanUrl = url;
+      if (url.endsWith("/") && !url.slice(0, -1).includes("/")) {
+        cleanUrl = url.slice(0, -1);
+      }
+
+      // Create a markdown link
+      return `[${cleanUrl}](${url})`;
+    });
+
+    // Process plain emails to markdown style
+    const emailRegex = /\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g;
+    text = text.replace(emailRegex, (email) => {
+      // Check if this email is already part of a markdown link
+      const prevChar = text.charAt(text.indexOf(email) - 1);
+      const nextChar = text.charAt(text.indexOf(email) + email.length);
+
+      // Skip if email appears to be part of a link already
+      if (
+        prevChar === "(" ||
+        nextChar === ")" ||
+        prevChar === "[" ||
+        nextChar === "]"
+      ) {
+        return email;
+      }
+
+      // Handle Yahoo email addresses with special styling
+      if (email.includes("@yahoo.com")) {
+        return `[${email}](mailto:${email})`;
+      }
+
+      return `[${email}](mailto:${email})`;
+    });
+
+    return text;
+  };
   // Toggle style menu
   const toggleStyleMenu = () => {
     setIsStyleMenuOpen(!isStyleMenuOpen);
@@ -458,6 +515,7 @@ export default function ChatInterface() {
                             ...msg,
                             content: processedContent,
                             isStreaming: false,
+                            originalText: completionData.fullText, // Store original text to preserve formatting
                           }
                         : msg
                     )
@@ -474,13 +532,15 @@ export default function ChatInterface() {
                 setIsAiTyping(false);
                 setIsLoading(false);
 
-                // Mark streaming as complete
+                // Mark streaming as complete but preserve any accumulated text
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === streamingMessageId
                       ? {
                           ...msg,
                           isStreaming: false,
+                          // If we have accumulated text, use that
+                          content: accumulatedText || msg.content,
                         }
                       : msg
                   )

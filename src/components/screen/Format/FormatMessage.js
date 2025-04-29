@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import ContactForm from "./ContactForm";
+import TextFormatter from "./TextFormatter";
 
 export default function FormatMessage({ message }) {
   const [processedMessage, setProcessedMessage] = useState(null);
@@ -257,6 +258,11 @@ export default function FormatMessage({ message }) {
               url: "https://github.com/RazvanBordinc",
               icon: "github",
             },
+            {
+              platform: "Email",
+              url: "mailto:razvan.bordinc@yahoo.com",
+              icon: "mail",
+            },
           ],
         };
 
@@ -302,7 +308,7 @@ export default function FormatMessage({ message }) {
         {/* First show the text content */}
         {processedMessage.text && processedMessage.text.trim() !== "" && (
           <div className="whitespace-pre-wrap leading-relaxed">
-            {processedMessage.text}
+            <TextFormatter text={processedMessage.text} isAnimated={false} />
           </div>
         )}
 
@@ -322,10 +328,10 @@ export default function FormatMessage({ message }) {
 
   return (
     <div className="space-y-3">
-      {/* Only show text content if it's not empty */}
+      {/* Only show text content if it's not empty - use TextFormatter here for consistent markdown formatting */}
       {processedMessage.text && processedMessage.text.trim() !== "" && (
         <div className="whitespace-pre-wrap leading-relaxed">
-          {processedMessage.text}
+          <TextFormatter text={processedMessage.text} isAnimated={false} />
         </div>
       )}
 

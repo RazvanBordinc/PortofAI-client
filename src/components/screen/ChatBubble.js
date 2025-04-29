@@ -41,6 +41,57 @@ export default function ChatBubble({ message }) {
     return String(content || "");
   };
 
+  // Check if the message has rich styling enhancements
+  const hasRichStyling = (content) => {
+    // Check if the content contains email or links (markdown style or plaintext)
+    if (typeof content !== "string") return false;
+
+    // Check for emails
+    const emailPattern = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i;
+    if (emailPattern.test(content)) return true;
+
+    // Check for markdown links
+    if (/\[.*\]\(.*\)/.test(content)) return true;
+
+    // Check for plain URLs
+    const urlPattern = /(https?:\/\/[^\s]+)/g;
+    if (urlPattern.test(content)) return true;
+
+    // Check for markdown formatting
+    if (
+      /\*\*.*\*\*/.test(content) ||
+      /\*[^*].*\*/.test(content) ||
+      /`.*`/.test(content)
+    )
+      return true;
+
+    return false;
+  };
+
+  // Apply elevated styling for messages with rich content
+  const getMessageStyle = () => {
+    // Base styles
+    let baseStyles = `
+      max-w-[75%] p-3 rounded-2xl 
+      ${
+        !isAI
+          ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-tr-none shadow-md"
+          : message.isError || hasParseError
+          ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-tl-none shadow-md"
+          : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none shadow-md"
+      }
+      transition-all duration-200 hover:shadow-lg
+    `;
+
+    // Enhanced styles for rich content (emails, links, etc.)
+    const content = getMessageContent();
+    if (isAI && hasRichStyling(content)) {
+      baseStyles += " border border-indigo-100 dark:border-indigo-900/40";
+    }
+
+    return baseStyles;
+  };
+
   return (
     <div className={`flex ${!isAI ? "justify-end" : "justify-start"}`}>
       {/* Avatar for AI - only shown for AI messages */}
@@ -52,27 +103,15 @@ export default function ChatBubble({ message }) {
         </div>
       )}
 
-      {/* Message Bubble - NO ANIMATIONS */}
-      <div
-        className={`
-          max-w-[75%] p-3 rounded-2xl 
-          ${
-            !isAI
-              ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-tr-none shadow-md"
-              : message.isError || hasParseError
-              ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-tl-none shadow-md"
-              : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none shadow-md"
-          }
-          transition-all duration-200 hover:shadow-lg
-        `}
-      >
+      {/* Message Bubble with enhanced styling */}
+      <div className={getMessageStyle()}>
         {/* Message Content */}
         {isAI ? (
           typeof message.content === "object" && message.content.format ? (
             <FormatMessage message={message.content} />
           ) : (
             <div className="whitespace-pre-wrap leading-relaxed">
-              {/* Use TextFormatter for AI messages - but without animations */}
+              {/* Always use TextFormatter for AI messages to handle rich content */}
               <TextFormatter text={getMessageContent()} isAnimated={false} />
             </div>
           )

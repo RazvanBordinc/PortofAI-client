@@ -2,125 +2,201 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import { Mail, ExternalLink } from "lucide-react";
 
-// Component to format text with markdown-style formatting
+// Component to format text with markdown-style formatting and special URL/email detection
 const TextFormatter = ({ text, isAnimated = true }) => {
   // If text is not a string, try to convert it
   if (typeof text !== "string") {
     return <span>{String(text || "")}</span>;
   }
 
-  // Split the text by formatting patterns
-  const formattedParts = [];
-  let remainingText = text;
+  // Process the text to detect and format all elements
+  const formattedElements = processText(text, isAnimated);
+  return <>{formattedElements}</>;
+};
+
+const processText = (text, isAnimated) => {
+  // Split the text into components: regular text, emails, URLs, and markdown
+  const components = [];
+  let currentText = "";
   let key = 0;
 
-  // Process all formatting patterns
-  while (remainingText.length > 0) {
-    // Check for bold text pattern: **text** (non-greedy match)
-    const boldRegex = /\*\*(.*?)\*\*/;
-    const boldMatch = remainingText.match(boldRegex);
+  // Use a state machine approach to parse the text
+  let i = 0;
 
-    // Check for italic text pattern: *text* (make sure it's not part of **)
-    const italicRegex = /(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/;
-    const italicMatch = remainingText.match(italicRegex);
+  while (i < text.length) {
+    // Look for email pattern
+    const emailMatch = text
+      .slice(i)
+      .match(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/);
 
-    // Check for code text pattern: `text`
-    const codeRegex = /`(.*?)`/;
-    const codeMatch = remainingText.match(codeRegex);
+    // Look for URL pattern (http:// or https://)
+    const urlMatch = text.slice(i).match(/\bhttps?:\/\/\S+\b/);
 
-    // Check for links pattern: [text](url)
-    const linkRegex = /\[(.*?)\]\((.*?)\)/;
-    const linkMatch = remainingText.match(linkRegex);
+    // Look for markdown bold pattern
+    const boldMatch = text.slice(i).match(/\*\*(.*?)\*\*/);
 
-    // Find the earliest match
-    const matches = [
-      { type: "bold", match: boldMatch, regex: boldRegex },
-      { type: "italic", match: italicMatch, regex: italicRegex },
-      { type: "code", match: codeMatch, regex: codeRegex },
-      { type: "link", match: linkMatch, regex: linkRegex },
-    ].filter((m) => m.match !== null);
+    // Look for markdown italic pattern
+    const italicMatch = text
+      .slice(i)
+      .match(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/);
+
+    // Look for markdown code pattern
+    const codeMatch = text.slice(i).match(/`([^`]+)`/);
+
+    // Look for markdown link pattern
+    const linkMatch = text.slice(i).match(/\[(.*?)\]\((.*?)\)/);
+
+    // Determine the closest match
+    const matches = [];
+    if (emailMatch)
+      matches.push({
+        type: "email",
+        match: emailMatch,
+        index: i + emailMatch.index,
+      });
+    if (urlMatch)
+      matches.push({ type: "url", match: urlMatch, index: i + urlMatch.index });
+    if (boldMatch)
+      matches.push({
+        type: "bold",
+        match: boldMatch,
+        index: i + boldMatch.index,
+      });
+    if (italicMatch)
+      matches.push({
+        type: "italic",
+        match: italicMatch,
+        index: i + italicMatch.index,
+      });
+    if (codeMatch)
+      matches.push({
+        type: "code",
+        match: codeMatch,
+        index: i + codeMatch.index,
+      });
+    if (linkMatch)
+      matches.push({
+        type: "link",
+        match: linkMatch,
+        index: i + linkMatch.index,
+      });
+
+    // Sort matches by index to find the closest one
+    matches.sort((a, b) => a.index - b.index);
 
     if (matches.length > 0) {
-      // Sort matches by their index in the original string
-      matches.sort((a, b) => a.match.index - b.match.index);
-
-      // Get the earliest match
-      const earliestMatch = matches[0];
+      const closestMatch = matches[0];
 
       // Add text before the match
-      if (earliestMatch.match.index > 0) {
-        const textBeforePattern = remainingText.substring(
-          0,
-          earliestMatch.match.index
-        );
-        formattedParts.push(
-          <NormalText
-            key={key++}
-            text={textBeforePattern}
-            isAnimated={isAnimated}
-          />
-        );
+      if (closestMatch.index > i) {
+        currentText += text.slice(i, closestMatch.index);
       }
 
-      // Add the formatted text based on match type
-      switch (earliestMatch.type) {
+      // Add any accumulated text as a normal text component
+      if (currentText) {
+        components.push(
+          <NormalText key={key++} text={currentText} isAnimated={isAnimated} />
+        );
+        currentText = "";
+      }
+
+      // Add the matched component
+      switch (closestMatch.type) {
+        case "email":
+          components.push(
+            <EmailText
+              key={key++}
+              email={closestMatch.match[0]}
+              isAnimated={isAnimated}
+            />
+          );
+          i = closestMatch.index + closestMatch.match[0].length;
+          break;
+
+        case "url":
+          components.push(
+            <UrlText
+              key={key++}
+              url={closestMatch.match[0]}
+              isAnimated={isAnimated}
+            />
+          );
+          i = closestMatch.index + closestMatch.match[0].length;
+          break;
+
         case "bold":
-          formattedParts.push(
+          components.push(
             <BoldText
               key={key++}
-              text={earliestMatch.match[1]}
+              text={closestMatch.match[1]}
               isAnimated={isAnimated}
             />
           );
+          i = closestMatch.index + closestMatch.match[0].length;
           break;
+
         case "italic":
-          formattedParts.push(
+          components.push(
             <ItalicText
               key={key++}
-              text={earliestMatch.match[1]}
+              text={closestMatch.match[1]}
               isAnimated={isAnimated}
             />
           );
+          i = closestMatch.index + closestMatch.match[0].length;
           break;
+
         case "code":
-          formattedParts.push(
+          components.push(
             <CodeText
               key={key++}
-              text={earliestMatch.match[1]}
+              text={closestMatch.match[1]}
               isAnimated={isAnimated}
             />
           );
+          i = closestMatch.index + closestMatch.match[0].length;
           break;
+
         case "link":
-          formattedParts.push(
+          components.push(
             <LinkText
               key={key++}
-              text={earliestMatch.match[1]}
-              url={earliestMatch.match[2]}
+              text={closestMatch.match[1]}
+              url={closestMatch.match[2]}
               isAnimated={isAnimated}
             />
           );
+          i = closestMatch.index + closestMatch.match[0].length;
+          break;
+
+        default:
+          // Should never reach here
+          i++;
           break;
       }
-
-      // Update the remaining text
-      remainingText = remainingText.substring(
-        earliestMatch.match.index + earliestMatch.match[0].length
-      );
     } else {
-      // No more patterns found, add the remaining text
-      formattedParts.push(
-        <NormalText key={key++} text={remainingText} isAnimated={isAnimated} />
-      );
-      remainingText = "";
+      // No matches found, add remaining text
+      currentText += text.slice(i);
+      break;
     }
   }
 
-  return <>{formattedParts}</>;
+  // Add any remaining text
+  if (currentText || i < text.length) {
+    if (i < text.length) {
+      currentText += text.slice(i);
+    }
+    components.push(
+      <NormalText key={key++} text={currentText} isAnimated={isAnimated} />
+    );
+  }
+
+  return components;
 };
 
-// Styled components for different text formats with minimal animations
+// Normal text component
 const NormalText = ({ text, isAnimated }) => {
   // Replace newlines with line breaks
   const processedText = text.split("\n").map((line, i) => (
@@ -134,7 +210,6 @@ const NormalText = ({ text, isAnimated }) => {
     return <span>{processedText}</span>;
   }
 
-  // Very subtle animation only for new characters
   return (
     <motion.span
       initial={{ opacity: 0.6 }}
@@ -146,103 +221,144 @@ const NormalText = ({ text, isAnimated }) => {
   );
 };
 
+// Bold text component
 const BoldText = ({ text, isAnimated }) => {
-  // Ensure the text is actually bold with proper font weight
-  const boldStyle = {
-    fontWeight: 700,
-    color: "var(--indigo-800, #3730a3)",
-  };
+  const element = (
+    <strong className="font-bold text-indigo-800 dark:text-indigo-300">
+      {text}
+    </strong>
+  );
 
-  if (!isAnimated) {
-    return (
-      <strong
-        className="font-bold text-indigo-800 dark:text-indigo-300"
-        style={boldStyle}
-      >
-        {text}
-      </strong>
-    );
-  }
+  if (!isAnimated) return element;
 
   return (
-    <motion.strong
-      className="font-bold text-indigo-800 dark:text-indigo-300"
-      style={boldStyle}
+    <motion.span
       initial={{ opacity: 0.6 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.1 }}
     >
-      {text}
-    </motion.strong>
+      {element}
+    </motion.span>
   );
 };
 
+// Italic text component
 const ItalicText = ({ text, isAnimated }) => {
-  if (!isAnimated) {
-    return (
-      <em className="italic text-indigo-700 dark:text-indigo-400">{text}</em>
-    );
-  }
+  const element = (
+    <em className="italic text-indigo-700 dark:text-indigo-400">{text}</em>
+  );
+
+  if (!isAnimated) return element;
 
   return (
-    <motion.em
-      className="italic text-indigo-700 dark:text-indigo-400"
+    <motion.span
       initial={{ opacity: 0.6 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.1 }}
     >
-      {text}
-    </motion.em>
+      {element}
+    </motion.span>
   );
 };
 
+// Code text component
 const CodeText = ({ text, isAnimated }) => {
-  if (!isAnimated) {
-    return (
-      <code className="px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-sm text-pink-600 dark:text-pink-400">
-        {text}
-      </code>
-    );
-  }
+  const element = (
+    <code className="px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-sm text-pink-600 dark:text-pink-400">
+      {text}
+    </code>
+  );
+
+  if (!isAnimated) return element;
 
   return (
-    <motion.code
-      className="px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-sm text-pink-600 dark:text-pink-400"
+    <motion.span
       initial={{ opacity: 0.6 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.1 }}
     >
-      {text}
-    </motion.code>
+      {element}
+    </motion.span>
   );
 };
 
+// Link text component
 const LinkText = ({ text, url, isAnimated }) => {
-  if (!isAnimated) {
-    return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300"
-      >
-        {text}
-      </a>
-    );
-  }
-
-  return (
-    <motion.a
+  const element = (
+    <a
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300"
+      className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+    >
+      {text}
+    </a>
+  );
+
+  if (!isAnimated) return element;
+
+  return (
+    <motion.span
       initial={{ opacity: 0.6 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.1 }}
     >
-      {text}
-    </motion.a>
+      {element}
+    </motion.span>
+  );
+};
+
+// URL component with special styling
+const UrlText = ({ url, isAnimated }) => {
+  const element = (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center rounded-md py-1 px-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors cursor-pointer no-underline text-sm"
+    >
+      <ExternalLink size={14} className="mr-1.5 flex-shrink-0" />
+      <span className="truncate max-w-[200px]">{url}</span>
+    </a>
+  );
+
+  if (!isAnimated) return element;
+
+  return (
+    <motion.span
+      initial={{ opacity: 0.6 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.1 }}
+    >
+      {element}
+    </motion.span>
+  );
+};
+
+// Email component with special styling
+const EmailText = ({ email, isAnimated }) => {
+  const mailtoUrl = `mailto:${email}`;
+
+  const element = (
+    <a
+      href={mailtoUrl}
+      className="inline-flex items-center rounded-md py-1 px-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors cursor-pointer no-underline"
+    >
+      <Mail size={14} className="mr-1.5 flex-shrink-0" />
+      <span>{email}</span>
+    </a>
+  );
+
+  if (!isAnimated) return element;
+
+  return (
+    <motion.span
+      initial={{ opacity: 0.6 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.1 }}
+    >
+      {element}
+    </motion.span>
   );
 };
 

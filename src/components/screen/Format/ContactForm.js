@@ -99,6 +99,11 @@ export default function ContactForm({ data }) {
                 url: "https://github.com/RazvanBordinc",
                 icon: "github",
               },
+              {
+                platform: "Email",
+                url: "mailto:razvan.bordinc@yahoo.com",
+                icon: "mail",
+              },
             ],
         emailSubject:
           partialData.emailSubject || "Contact from Portfolio Website",
@@ -120,6 +125,11 @@ export default function ContactForm({ data }) {
             platform: "GitHub",
             url: "https://github.com/RazvanBordinc",
             icon: "github",
+          },
+          {
+            platform: "Email",
+            url: "mailto:razvan.bordinc@yahoo.com",
+            icon: "mail",
           },
         ],
         emailSubject: "Contact from Portfolio Website",
@@ -178,6 +188,8 @@ export default function ContactForm({ data }) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
+      console.log("Sending contact form submission to API");
+
       const response = await fetch(`${apiUrl}/api/contact`, {
         method: "POST",
         signal: controller.signal,
@@ -190,40 +202,58 @@ export default function ContactForm({ data }) {
 
       clearTimeout(timeoutId);
 
+      // Get response data
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to send message");
+        throw new Error(responseData.message || "Failed to send message");
       }
 
-      // success
+      // Always show success message to the user
       setSubmitted(true);
       setFormState({ name: "", email: "", phone: "", message: "" });
 
-      // hide success banner after 5s
+      // If there's a note in the response, log it
+      if (responseData.note) {
+        console.log("Server note:", responseData.note);
+      }
+
+      // Hide success banner after 5s
       setTimeout(() => setSubmitted(false), 5000);
     } catch (err) {
+      console.error("Contact form submission error:", err);
+
       if (err.name === "AbortError") {
-        setError("Request timed out. Please try again.");
+        const directEmailInfo =
+          "You can also contact me directly at razvan.bordinc@yahoo.com";
+        setError(`Request timed out. ${directEmailInfo}`);
       } else {
-        setError(err.message || "Something went wrong. Please try again.");
+        setError(
+          `${
+            err.message || "Something went wrong"
+          }. You can also contact me directly at razvan.bordinc@yahoo.com`
+        );
       }
     } finally {
       setIsSubmitting(false);
     }
   };
-
   // Get social icon based on platform
   const getSocialIcon = (platform) => {
     if (!platform) return <ExternalLink size={16} />;
 
     try {
-      switch (platform.toLowerCase()) {
+      const platformLower = platform.toLowerCase();
+      switch (platformLower) {
         case "linkedin":
           return <Linkedin size={16} />;
         case "github":
           return <Github size={16} />;
         case "twitter":
           return <Twitter size={16} />;
+        case "email":
+        case "mail":
+          return <Mail size={16} />;
         default:
           return <ExternalLink size={16} />;
       }
@@ -485,13 +515,6 @@ export default function ContactForm({ data }) {
                   </ul>
                 </div>
               )}
-
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-4 text-sm text-slate-500 dark:text-slate-400">
-                <p>
-                  Your data is securely processed and never shared with third
-                  parties.
-                </p>
-              </div>
             </div>
           </div>
         </div>

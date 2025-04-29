@@ -10,6 +10,7 @@ export default function StreamingBubble({ message }) {
   const [cursorVisible, setCursorVisible] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isStreaming, setIsStreaming] = useState(true);
+  const [hasRichContent, setHasRichContent] = useState(false);
 
   // Set up the blinking cursor effect - only when streaming
   useEffect(() => {
@@ -47,6 +48,9 @@ export default function StreamingBubble({ message }) {
       // Update the content
       setCurrentContent(content);
 
+      // Check for rich content (emails, links, etc.)
+      checkForRichContent(content);
+
       // Cleanup timeout
       return () => clearTimeout(timeout);
     }
@@ -61,6 +65,46 @@ export default function StreamingBubble({ message }) {
     }
   }, [message.isStreaming, isStreaming]);
 
+  // Check if the content contains rich elements like emails, links, etc.
+  const checkForRichContent = (content) => {
+    if (typeof content !== "string") {
+      setHasRichContent(false);
+      return;
+    }
+
+    // Check for emails
+    const emailPattern = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i;
+    if (emailPattern.test(content)) {
+      setHasRichContent(true);
+      return;
+    }
+
+    // Check for markdown links
+    if (/\[.*\]\(.*\)/.test(content)) {
+      setHasRichContent(true);
+      return;
+    }
+
+    // Check for plain URLs
+    const urlPattern = /(https?:\/\/[^\s]+)/g;
+    if (urlPattern.test(content)) {
+      setHasRichContent(true);
+      return;
+    }
+
+    // Check for markdown formatting
+    if (
+      /\*\*.*\*\*/.test(content) ||
+      /\*[^*].*\*/.test(content) ||
+      /`.*`/.test(content)
+    ) {
+      setHasRichContent(true);
+      return;
+    }
+
+    setHasRichContent(false);
+  };
+
   return (
     <div className="flex justify-start">
       {/* Avatar for AI - no animation */}
@@ -70,8 +114,14 @@ export default function StreamingBubble({ message }) {
         </div>
       </div>
 
-      {/* Message Bubble - no animation */}
-      <div className="max-w-[75%] p-3 rounded-2xl shadow-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none hover:shadow-lg">
+      {/* Message Bubble - with enhanced styling for rich content */}
+      <div
+        className={`max-w-[75%] p-3 rounded-2xl shadow-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none hover:shadow-lg ${
+          hasRichContent
+            ? "border border-indigo-100 dark:border-indigo-900/40"
+            : ""
+        }`}
+      >
         {/* Message Content with Animation only for the text chunks */}
         <div className="whitespace-pre-wrap leading-relaxed relative">
           {/* Add a highlight effect for new content */}
@@ -87,8 +137,8 @@ export default function StreamingBubble({ message }) {
             )}
           </AnimatePresence>
 
-          {/* Format the text with proper styling */}
-          <TextFormatter text={currentContent} />
+          {/* Format the text with proper styling - use TextFormatter for both streaming and final state */}
+          <TextFormatter text={currentContent} isAnimated={isStreaming} />
 
           {/* Blinking cursor - only shown when streaming */}
           {isStreaming && (
