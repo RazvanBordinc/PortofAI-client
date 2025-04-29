@@ -23,7 +23,7 @@ export function extractFormatAndData(text) {
 
   try {
     // Extract format tag
-    const formatRegex = /\[format:(text|table|contact|pdf)\]/i;
+    const formatRegex = /\[format:(text|contact)\]/i;
     const formatMatch = text.match(formatRegex);
     if (formatMatch) {
       formatType = formatMatch[1].toLowerCase();
@@ -184,9 +184,7 @@ export function processServerResponse(responseData) {
   let format = responseData.format || "text";
 
   // Check for format tag in text which overrides server format
-  const formatMatch = responseText.match(
-    /\[format:(text|table|contact|pdf)\]/i
-  );
+  const formatMatch = responseText.match(/\[format:(text|contact)\]/i);
   if (formatMatch) {
     format = formatMatch[1].toLowerCase();
   }

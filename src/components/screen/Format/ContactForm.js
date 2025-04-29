@@ -25,7 +25,7 @@ export default function ContactForm({ data }) {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dataError, setDataError] = useState(null);
-
+  const [error, setError] = useState(null);
   // Process and validate data when component mounts
   useEffect(() => {
     try {
@@ -79,7 +79,7 @@ export default function ContactForm({ data }) {
         : [
             {
               platform: "LinkedIn",
-              url: "#",
+              url: "https://www.linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
               icon: "linkedin",
             },
           ],
@@ -126,24 +126,52 @@ export default function ContactForm({ data }) {
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) return;
 
     setIsSubmitting(true);
+    setError(null);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(`${apiUrl}/api/contact`, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        mode: "cors",
+        body: JSON.stringify(formState), // { name, email, phone, message }
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to send message");
+      }
+
+      // success
       setSubmitted(true);
+      setFormState({ name: "", email: "", phone: "", message: "" });
 
-      // Reset form after some delay
-      setTimeout(() => {
-        setFormState({ name: "", email: "", phone: "", message: "" });
-        setSubmitted(false);
-      }, 3000);
-    }, 1500);
+      // hide success banner after 3s
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (err) {
+      if (err.name === "AbortError") {
+        setError("Request timed out. Please try again.");
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Get social icon based on platform
@@ -181,12 +209,16 @@ export default function ContactForm({ data }) {
       </div>
 
       {/* Error notification */}
-      {dataError && (
-        <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-800/30 p-3 text-orange-800 dark:text-orange-300 flex items-center">
-          <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-          <span>Note: Using default contact form template. {dataError}</span>
-        </div>
-      )}
+      {dataError ||
+        (error && (
+          <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-800/30 p-3 text-orange-800 dark:text-orange-300 flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+            <span>
+              Note: Using default contact form template.{" "}
+              {error ? error : dataError}
+            </span>
+          </div>
+        ))}
 
       {submitted ? (
         <div className="p-6 flex flex-col items-center justify-center text-center">

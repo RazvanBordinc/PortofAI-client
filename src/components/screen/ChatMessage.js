@@ -30,7 +30,7 @@ export default function ChatMessage({ message }) {
       } else if (typeof processedMsg.content === "string") {
         // Extract format type from text if present
         const formatMatch = processedMsg.content.match(
-          /\[format:(text|table|contact|pdf)\]/i
+          /\[format:(text|contact)\]/i
         );
 
         const format = formatMatch ? formatMatch[1].toLowerCase() : "text";
@@ -52,7 +52,7 @@ export default function ChatMessage({ message }) {
 
         // Clean text (remove format and data tags)
         let cleanedText = processedMsg.content
-          .replace(/\[format:(text|table|contact|pdf)\]/gi, "")
+          .replace(/\[format:(text|contact)\]/gi, "")
           .replace(/\[\/format\]/gi, "");
 
         if (dataMatch) {

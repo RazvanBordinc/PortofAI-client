@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
 import ContactForm from "./ContactForm";
-import DataTable from "./DataTable";
-import PdfViewer from "./PdfViewer";
 
 export default function FormatMessage({ message }) {
   const [processedMessage, setProcessedMessage] = useState(null);
@@ -123,7 +121,7 @@ export default function FormatMessage({ message }) {
 
     try {
       // Extract format
-      const formatRegex = /\[format:(text|table|contact|pdf)\]/i;
+      const formatRegex = /\[format:(text|contact)\]/i;
       const formatMatch = text.match(formatRegex);
       if (formatMatch) {
         formatType = formatMatch[1].toLowerCase();
@@ -213,15 +211,6 @@ export default function FormatMessage({ message }) {
   // Create fallback data based on format type
   const createFallbackData = (formatType) => {
     switch (formatType) {
-      case "table":
-        return {
-          title: "Data Table",
-          columns: [
-            { id: "col1", label: "Column 1" },
-            { id: "col2", label: "Column 2" },
-          ],
-          rows: [{ col1: "No data available", col2: "Please try again" }],
-        };
       case "contact":
         return {
           title: "Contact Form",
@@ -230,22 +219,7 @@ export default function FormatMessage({ message }) {
           emailSubject: "Contact from Portfolio Website",
           socialLinks: [{ platform: "LinkedIn", url: "#", icon: "linkedin" }],
         };
-      case "pdf":
-        return {
-          title: "Document.pdf",
-          totalPages: 1,
-          lastUpdated: new Date().toLocaleDateString("en-US", {
-            month: "long",
-            year: "numeric",
-          }),
-          content: [
-            {
-              pageNumber: 1,
-              heading: "Document Content",
-              summary: "Document content could not be loaded.",
-            },
-          ],
-        };
+
       default:
         return null;
     }
@@ -265,10 +239,6 @@ export default function FormatMessage({ message }) {
       switch (processedMessage.format) {
         case "contact":
           return <ContactForm data={processedMessage.data} />;
-        case "table":
-          return <DataTable data={processedMessage.data} />;
-        case "pdf":
-          return <PdfViewer data={processedMessage.data} />;
         default:
           return null;
       }

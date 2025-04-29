@@ -130,9 +130,7 @@ export default function ChatInterface() {
 
     // Check for format tags in the response text first
     let format = "text"; // Default format
-    const formatMatch = responseText.match(
-      /\[format:(text|table|contact|pdf)\]/i
-    );
+    const formatMatch = responseText.match(/\[format:(text|contact)\]/i);
     if (formatMatch) {
       format = formatMatch[1].toLowerCase();
     } else if (responseData.format) {
@@ -162,7 +160,7 @@ export default function ChatInterface() {
 
     // Clean the response text by removing format tags and data tags
     let cleanedText = responseText
-      .replace(/\[format:(text|table|contact|pdf)\]/gi, "")
+      .replace(/\[format:(text|contact)\]/gi, "")
       .replace(/\[\/format\]/gi, "");
 
     if (formatData) {
