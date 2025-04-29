@@ -54,13 +54,13 @@ export default function ChatBubble({ message }) {
       {/* Message Bubble */}
       <div
         className={`
-          max-w-[75%] p-3 rounded-2xl shadow-md 
+          max-w-[75%] p-3 rounded-2xl 
           ${
             !isAI
-              ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-tr-none"
+              ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-tr-none shadow-md"
               : message.isError || hasParseError
-              ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-tl-none"
-              : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none"
+              ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-tl-none shadow-md"
+              : " text-slate-800 dark:text-slate-200 rounded-tl-none"
           }
           transform transition-all duration-200 hover:shadow-lg
         `}

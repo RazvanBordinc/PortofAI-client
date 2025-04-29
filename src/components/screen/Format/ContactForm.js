@@ -26,6 +26,7 @@ export default function ContactForm({ data }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dataError, setDataError] = useState(null);
   const [error, setError] = useState(null);
+
   // Process and validate data when component mounts
   useEffect(() => {
     try {
@@ -59,33 +60,71 @@ export default function ContactForm({ data }) {
 
   // Validate contact data has all required fields
   const isValidContactData = (data) => {
-    return (
-      data &&
-      data.recipientName &&
-      typeof data.recipientName === "string" &&
-      (data.socialLinks === undefined || Array.isArray(data.socialLinks))
-    );
+    try {
+      return (
+        data &&
+        typeof data === "object" &&
+        data.recipientName &&
+        typeof data.recipientName === "string" &&
+        (data.socialLinks === undefined || Array.isArray(data.socialLinks))
+      );
+    } catch (err) {
+      console.error("Error validating contact data:", err);
+      return false;
+    }
   };
 
   // Create default form data, optionally preserving valid fields from provided data
   const createDefaultFormData = (partialData = {}) => {
-    return {
-      title: partialData.title || "Contact Form",
-      recipientName: partialData.recipientName || "Portfolio Owner",
-      recipientPosition:
-        partialData.recipientPosition || "Full Stack Developer",
-      socialLinks: Array.isArray(partialData.socialLinks)
-        ? partialData.socialLinks
-        : [
-            {
-              platform: "LinkedIn",
-              url: "https://www.linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
-              icon: "linkedin",
-            },
-          ],
-      emailSubject:
-        partialData.emailSubject || "Contact from Portfolio Website",
-    };
+    try {
+      // Handle case where partialData is not an object
+      if (typeof partialData !== "object" || partialData === null) {
+        partialData = {};
+      }
+
+      return {
+        title: partialData.title || "Contact Form",
+        recipientName: partialData.recipientName || "Razvan Bordinc",
+        recipientPosition: partialData.recipientPosition || "Software Engineer",
+        socialLinks: Array.isArray(partialData.socialLinks)
+          ? partialData.socialLinks
+          : [
+              {
+                platform: "LinkedIn",
+                url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
+                icon: "linkedin",
+              },
+              {
+                platform: "GitHub",
+                url: "https://github.com/RazvanBordinc",
+                icon: "github",
+              },
+            ],
+        emailSubject:
+          partialData.emailSubject || "Contact from Portfolio Website",
+      };
+    } catch (err) {
+      console.error("Error creating default form data:", err);
+      // Provide absolute fallback with hardcoded values
+      return {
+        title: "Contact Form",
+        recipientName: "Razvan Bordinc",
+        recipientPosition: "Software Engineer",
+        socialLinks: [
+          {
+            platform: "LinkedIn",
+            url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
+            icon: "linkedin",
+          },
+          {
+            platform: "GitHub",
+            url: "https://github.com/RazvanBordinc",
+            icon: "github",
+          },
+        ],
+        emailSubject: "Contact from Portfolio Website",
+      };
+    }
   };
 
   // Form validation
@@ -146,28 +185,27 @@ export default function ContactForm({ data }) {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        mode: "cors",
         body: JSON.stringify(formState), // { name, email, phone, message }
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.message || "Failed to send message");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to send message");
       }
 
       // success
       setSubmitted(true);
       setFormState({ name: "", email: "", phone: "", message: "" });
 
-      // hide success banner after 3s
-      setTimeout(() => setSubmitted(false), 3000);
+      // hide success banner after 5s
+      setTimeout(() => setSubmitted(false), 5000);
     } catch (err) {
       if (err.name === "AbortError") {
         setError("Request timed out. Please try again.");
       } else {
-        setError(err.message);
+        setError(err.message || "Something went wrong. Please try again.");
       }
     } finally {
       setIsSubmitting(false);
@@ -178,15 +216,20 @@ export default function ContactForm({ data }) {
   const getSocialIcon = (platform) => {
     if (!platform) return <ExternalLink size={16} />;
 
-    switch (platform.toLowerCase()) {
-      case "linkedin":
-        return <Linkedin size={16} />;
-      case "github":
-        return <Github size={16} />;
-      case "twitter":
-        return <Twitter size={16} />;
-      default:
-        return <ExternalLink size={16} />;
+    try {
+      switch (platform.toLowerCase()) {
+        case "linkedin":
+          return <Linkedin size={16} />;
+        case "github":
+          return <Github size={16} />;
+        case "twitter":
+          return <Twitter size={16} />;
+        default:
+          return <ExternalLink size={16} />;
+      }
+    } catch (err) {
+      console.error("Error getting social icon:", err);
+      return <ExternalLink size={16} />;
     }
   };
 
@@ -209,16 +252,18 @@ export default function ContactForm({ data }) {
       </div>
 
       {/* Error notification */}
-      {dataError ||
-        (error && (
-          <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-800/30 p-3 text-orange-800 dark:text-orange-300 flex items-center">
-            <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-            <span>
-              Note: Using default contact form template.{" "}
-              {error ? error : dataError}
-            </span>
-          </div>
-        ))}
+      {(dataError || error) && (
+        <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-800/30 p-3 text-orange-800 dark:text-orange-300 flex items-center">
+          <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+          <span>
+            {error
+              ? error
+              : dataError
+              ? "Note: Using default contact form template. " + dataError
+              : ""}
+          </span>
+        </div>
+      )}
 
       {submitted ? (
         <div className="p-6 flex flex-col items-center justify-center text-center">
@@ -229,9 +274,9 @@ export default function ContactForm({ data }) {
             Message Sent!
           </h4>
           <p className="text-slate-600 dark:text-slate-300 max-w-sm">
-            Thanks for reaching out to {formData.recipientName || "us"}. Your
-            message has been sent successfully. You&apos;ll receive a response
-            soon.
+            Thanks for reaching out to {formData.recipientName || "Razvan"}.
+            Your message has been sent successfully. You&apos;ll receive a
+            response soon.
           </p>
         </div>
       ) : (
@@ -409,10 +454,10 @@ export default function ContactForm({ data }) {
                   <User className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <h4 className="text-lg font-medium text-slate-900 dark:text-white">
-                  {formData.recipientName || "Portfolio Owner"}
+                  {formData.recipientName || "Razvan Bordinc"}
                 </h4>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {formData.recipientPosition || "Full Stack Developer"}
+                  {formData.recipientPosition || "Software Engineer"}
                 </p>
               </div>
 

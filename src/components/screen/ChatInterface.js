@@ -120,50 +120,165 @@ export default function ChatInterface() {
     }
   };
 
-  // Process the response from the server to extract data properly
-  const processResponse = (responseData) => {
-    // Extract the response text
-    const responseText =
-      typeof responseData.response === "string"
-        ? responseData.response
-        : "Sorry, I received an invalid response format.";
+  // Fix truncated JSON by checking for balanced brackets and completing if necessary
+  const fixTruncatedJson = (jsonStr) => {
+    // Count opening and closing braces/brackets
+    const openBraces = (jsonStr.match(/{/g) || []).length;
+    const closeBraces = (jsonStr.match(/}/g) || []).length;
+    const openBrackets = (jsonStr.match(/\[/g) || []).length;
+    const closeBrackets = (jsonStr.match(/\]/g) || []).length;
 
-    // Check for format tags in the response text first
+    // Check if the string contains recognizable contact form pattern
+    const isContactForm =
+      jsonStr.includes("Contact Form") &&
+      jsonStr.includes("socialLinks") &&
+      jsonStr.includes("platform");
+
+    // If brackets aren't balanced and it looks like a contact form
+    if (
+      isContactForm &&
+      (openBraces !== closeBraces || openBrackets !== closeBrackets)
+    ) {
+      console.log("Detected unbalanced brackets in contact form JSON");
+
+      // Special case: If we see the specific truncation pattern (ends with github entry)
+      if (jsonStr.includes("GitHub") && !jsonStr.endsWith("]}")) {
+        console.log("Detected truncated JSON after GitHub entry");
+
+        // Complete the JSON with missing closing brackets
+        let completed = jsonStr;
+
+        // If the last character isn't a closing brace, add one to close the GitHub object
+        if (!completed.trimEnd().endsWith("}")) {
+          completed += "}";
+        }
+
+        // Add closing bracket for the socialLinks array if needed
+        if (openBrackets > closeBrackets) {
+          completed += "]";
+        }
+
+        // Add closing brace for the main object if needed
+        if (openBraces > closeBraces) {
+          completed += "}";
+        }
+
+        console.log("Completed JSON:", completed);
+        return completed;
+      }
+
+      // Generic fix: Add missing closing brackets and braces
+      let completed = jsonStr;
+
+      // Add missing closing brackets
+      for (let i = 0; i < openBrackets - closeBrackets; i++) {
+        completed += "]";
+      }
+
+      // Add missing closing braces
+      for (let i = 0; i < openBraces - closeBraces; i++) {
+        completed += "}";
+      }
+
+      console.log("Generically completed JSON:", completed);
+      return completed;
+    }
+
+    return jsonStr;
+  };
+
+  // Clean up a JSON string
+  const cleanJsonString = (jsonStr) => {
+    if (!jsonStr) return jsonStr;
+
+    // Replace JavaScript-style property names (without quotes) with JSON-style (with quotes)
+    let cleaned = jsonStr.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
+
+    // Replace single quotes with double quotes (handling escaped quotes)
+    cleaned = cleaned
+      .replace(/\\'/g, "\\TEMP_QUOTE") // Temporarily replace escaped single quotes
+      .replace(/'/g, '"') // Replace all single quotes with double quotes
+      .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
+
+    // Remove trailing commas in objects and arrays
+    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
+
+    // Remove any unescaped newlines inside strings
+    cleaned = cleaned.replace(/([^\\])"([^"]*)\n([^"]*)"/g, '$1"$2 $3"');
+
+    // Remove any control characters
+    cleaned = cleaned.replace(/[\x00-\x1F]/g, " ");
+
+    return cleaned;
+  };
+
+  // Create default contact form data
+  const createDefaultContactData = () => {
+    return {
+      title: "Contact Form",
+      recipientName: "Razvan Bordinc",
+      recipientPosition: "Software Engineer",
+      emailSubject: "Contact from Portfolio Website",
+      socialLinks: [
+        {
+          platform: "LinkedIn",
+          url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
+          icon: "linkedin",
+        },
+        {
+          platform: "GitHub",
+          url: "https://github.com/RazvanBordinc",
+          icon: "github",
+        },
+      ],
+    };
+  };
+
+  // Process the completed full response to handle format tags
+  const processCompletedResponse = (fullText) => {
+    // Check for format tags in the text
     let format = "text"; // Default format
-    const formatMatch = responseText.match(/\[format:(text|contact)\]/i);
+    const formatMatch = fullText.match(/\[format:(text|contact)\]/i);
     if (formatMatch) {
       format = formatMatch[1].toLowerCase();
-    } else if (responseData.format) {
-      // If not found in text, use the format from the response data
-      format = responseData.format;
     }
 
-    // Extract or parse JSON data
+    // Extract data if present
     let formatData = null;
+    const dataMatch = fullText.match(/\[data:([\s\S]*?)\]/s);
 
-    if (responseData.formatData) {
-      // Data was already parsed by the backend
-      formatData = responseData.formatData;
-    } else {
-      // Try to extract data from response text
-      const dataMatch = responseText.match(/\[data:([\s\S]*?)\]/s);
-      if (dataMatch && dataMatch[1]) {
+    if (dataMatch && dataMatch[1]) {
+      try {
+        // Clean and parse the JSON data
+        let jsonString = dataMatch[1].trim();
+        jsonString = fixTruncatedJson(jsonString);
+        jsonString = cleanJsonString(jsonString);
+
         try {
-          formatData = JSON.parse(dataMatch[1].trim());
-          console.log("Extracted data from response text", formatData);
+          formatData = JSON.parse(jsonString);
         } catch (error) {
-          console.error("Failed to parse data from response text:", error);
-          formatData = { error: "Could not parse JSON data: " + error.message };
+          console.error("Error parsing JSON data:", error);
+          formatData = { error: `Could not parse JSON data: ${error.message}` };
+
+          // For contact form, use default data
+          if (format === "contact") {
+            formatData = createDefaultContactData();
+          }
         }
+      } catch (error) {
+        console.error("Error processing data tag:", error);
       }
+    } else if (format === "contact") {
+      // Default contact data if format is contact but no data is found
+      formatData = createDefaultContactData();
     }
 
-    // Clean the response text by removing format tags and data tags
-    let cleanedText = responseText
+    // Clean the response text
+    let cleanedText = fullText
       .replace(/\[format:(text|contact)\]/gi, "")
       .replace(/\[\/format\]/gi, "");
 
-    if (formatData) {
+    if (dataMatch) {
       cleanedText = cleanedText.replace(/\[data:[\s\S]*?\]/s, "");
     }
 
@@ -208,7 +323,7 @@ export default function ChatInterface() {
     setIsLoading(false);
   };
 
-  // Send message to backend
+  // Send message to backend with streaming support
   const handleSendMessage = async (e) => {
     e?.preventDefault(); // Make preventDefault optional for suggestion clicks
     if (!newMessage.trim() || isLoading || isAiTyping || remaining <= 0) return;
@@ -229,51 +344,142 @@ export default function ChatInterface() {
     setIsAiTyping(true);
     setIsFetchError(false);
 
+    // Create a streaming message placeholder
+    const streamingMessageId = Date.now() + 1;
+    const streamingMessage = {
+      id: streamingMessageId,
+      content: "",
+      sender: "ai",
+      timestamp: new Date().toISOString(),
+      isStreaming: true, // Flag to indicate this is a streaming message
+    };
+
+    // Add the streaming message to the chat
+    setMessages((prev) => [...prev, streamingMessage]);
+
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
 
+      // Abort controller for the fetch request
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       console.log(`Sending message to API with style: ${selectedStyle}`);
 
-      const response = await fetch(`${apiUrl}/api/chat`, {
+      // Start the streaming request
+      const response = await fetch(`${apiUrl}/api/chat/stream`, {
         method: "POST",
         signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
+          Accept: "text/event-stream",
         },
-        mode: "cors",
         body: JSON.stringify({
           message: userMessage.content,
-          style: selectedStyle, // Include the selected style with the request
+          style: selectedStyle,
         }),
       });
 
-      clearTimeout(timeoutId);
-
+      // Check for errors
       if (!response.ok) {
-        console.error(`Error response: ${response.status}`);
-        throw new Error(`Error: ${response.status}`);
+        clearTimeout(timeoutId);
+        throw new Error(
+          `Error: ${response.status} - ${await response
+            .text()
+            .catch(() => "Unknown error")}`
+        );
       }
 
-      const data = await response.json();
-      console.log("Received response from API:", data);
+      // Handle the streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedText = "";
+      let partialChunk = "";
 
-      // Process the response to properly extract format and data
-      const processedContent = processResponse(data);
-      console.log("Processed response:", processedContent);
+      // Process stream
+      while (true) {
+        const { value, done } = await reader.read();
 
-      // Add bot response to chat with structured format
-      const botMessage = {
-        id: Date.now() + 1,
-        content: processResponse(data),
-        sender: "ai",
-        timestamp: new Date().toISOString(),
-      };
+        if (done) {
+          // Stream is complete, break the loop
+          break;
+        }
 
-      handleAiResponse(botMessage);
+        // Decode this chunk
+        const chunk = decoder.decode(value, { stream: true });
+
+        // Combine with any leftover partial chunk
+        const textToParse = partialChunk + chunk;
+
+        // Split on double newlines (SSE format: "data: ...\n\n")
+        const parts = textToParse.split("\n\n");
+
+        // The last part might be incomplete
+        partialChunk = parts.pop() || "";
+
+        for (const part of parts) {
+          if (part.trim() === "") continue;
+
+          // Check if this is the completion event
+          if (part.startsWith("event: done")) {
+            // Extract data after "data: "
+            const dataStart = part.indexOf("data: ");
+            if (dataStart >= 0) {
+              try {
+                const dataJson = part.substring(dataStart + 6); // "data: " is 6 chars
+                const completionData = JSON.parse(dataJson);
+
+                if (completionData.done && completionData.fullText) {
+                  // Process the full response to check for format tags, etc.
+                  const processedContent = processCompletedResponse(
+                    completionData.fullText
+                  );
+
+                  // Update the message with the processed content
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === streamingMessageId
+                        ? {
+                            ...msg,
+                            content: processedContent,
+                            isStreaming: false,
+                          }
+                        : msg
+                    )
+                  );
+                }
+              } catch (error) {
+                console.error("Error parsing completion data:", error);
+              }
+            }
+            continue;
+          }
+
+          // Regular data event
+          const dataStart = part.indexOf("data: ");
+          if (dataStart >= 0) {
+            const data = part.substring(dataStart + 6); // "data: " is 6 chars
+
+            // Process escaped characters (\n, \r)
+            const textChunk = data.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
+
+            // Add to accumulated text
+            accumulatedText += textChunk;
+
+            // Update the message with the accumulated text
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === streamingMessageId
+                  ? { ...msg, content: accumulatedText }
+                  : msg
+              )
+            );
+          }
+        }
+      }
+
+      clearTimeout(timeoutId);
+      setIsAiTyping(false);
 
       // Update remaining requests
       fetchRemainingRequests();
@@ -281,22 +487,28 @@ export default function ChatInterface() {
       console.error("Error sending message:", error);
       setIsAiTyping(false);
 
-      // Add error message to chat
-      const errorMessage = {
-        id: Date.now() + 1,
-        content: {
-          text:
-            error.name === "AbortError"
-              ? "The request took too long to complete. Please try again later."
-              : "Sorry, there was an error processing your request. Please try again later.",
-          format: "text",
-        },
-        sender: "ai",
-        isError: true,
-        timestamp: new Date().toISOString(),
-      };
-
-      setMessages((prev) => [...prev, errorMessage]);
+      // Replace the streaming message with an error message
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === streamingMessageId
+            ? {
+                id: streamingMessageId,
+                content: {
+                  text:
+                    error.name === "AbortError"
+                      ? "The request took too long to complete. Please try again later."
+                      : error.message && error.message.includes("503")
+                      ? "The AI service is temporarily unavailable. Please try again in a few moments."
+                      : "Sorry, there was an error processing your request. Please try again later.",
+                  format: "text",
+                },
+                sender: "ai",
+                isError: true,
+                timestamp: new Date().toISOString(),
+              }
+            : msg
+        )
+      );
     } finally {
       setIsLoading(false);
     }
@@ -341,8 +553,8 @@ export default function ChatInterface() {
             ))
           )}
 
-          {/* AI Typing Animation */}
-          {isAiTyping && (
+          {/* AI Typing Animation - now only used if needed as fallback */}
+          {isAiTyping && !messages.some((m) => m.isStreaming) && (
             <AiResponseHandler
               userMessage={currentUserMessage}
               onAiResponse={handleAiResponse}

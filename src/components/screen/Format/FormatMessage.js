@@ -4,7 +4,6 @@ import ContactForm from "./ContactForm";
 export default function FormatMessage({ message }) {
   const [processedMessage, setProcessedMessage] = useState(null);
   const [parseError, setParseError] = useState(null);
-  const [rawMessage, setRawMessage] = useState(null);
 
   // Process the message when it changes
   useEffect(() => {
@@ -16,7 +15,6 @@ export default function FormatMessage({ message }) {
   // Wrap in useCallback to prevent infinite re-renders
   const processMessage = useCallback((originalMessage) => {
     console.log("FormatMessage processing:", originalMessage);
-    setRawMessage(originalMessage); // Save the raw message for debugging/fallback
     setParseError(null);
 
     // Initialize default processed message
@@ -99,9 +97,7 @@ export default function FormatMessage({ message }) {
           typeof originalMessage === "object" && originalMessage.format
             ? originalMessage.format
             : "text",
-        data: {
-          error: error.message,
-        },
+        data: null, // Don't pass potentially corrupted data
       });
     }
   }, []);
@@ -139,22 +135,41 @@ export default function FormatMessage({ message }) {
         try {
           let jsonStr = dataMatch[1].trim();
 
-          // Log the first part of the JSON string for debugging
-          console.log(
-            "Raw JSON data (first 100 chars):",
-            jsonStr.substring(0, 100)
-          );
+          // Log the string for debugging
+          console.log("Raw JSON data:", jsonStr);
 
           // Try to clean up common JSON issues
           jsonStr = cleanJsonString(jsonStr);
+          console.log("Cleaned JSON data:", jsonStr);
 
           // Try parsing the cleaned JSON
-          extractedData = JSON.parse(jsonStr);
+          try {
+            extractedData = JSON.parse(jsonStr);
+            console.log("Successfully extracted JSON data:", extractedData);
+          } catch (parseError) {
+            console.error("JSON parsing error after cleaning:", parseError);
+
+            // One more attempt with a more aggressive cleanup
+            jsonStr = jsonStr
+              .replace(/\}\s*\]/g, "}]")
+              .replace(/\]\s*\}/g, "]}");
+            try {
+              extractedData = JSON.parse(jsonStr);
+              console.log("Successfully parsed JSON after aggressive cleaning");
+            } catch (finalError) {
+              console.error("Final JSON parsing error:", finalError);
+              // Fall back to default data
+              extractedData = createFallbackData(formatType);
+              throw new Error(
+                `Could not parse JSON data: ${finalError.message}`
+              );
+            }
+          }
+
           cleanedText = cleanedText.replace(dataMatch[0], "");
-          console.log("Successfully extracted JSON data");
         } catch (error) {
           console.error(
-            "Error parsing JSON data:",
+            "Error handling JSON data:",
             error,
             "JSON string:",
             dataMatch[1].substring(0, 100)
@@ -193,8 +208,16 @@ export default function FormatMessage({ message }) {
   const cleanJsonString = (jsonStr) => {
     if (!jsonStr) return jsonStr;
 
+    // Handle any extra characters at the end that could break JSON
+    let cleaned = jsonStr;
+
+    // Look for trailing "]}}" pattern and fix it if needed
+    if (cleaned.match(/\]\s*\}\s*\}+\s*$/)) {
+      cleaned = cleaned.replace(/\]\s*\}\s*\}+\s*$/, "]}");
+    }
+
     // Replace JavaScript-style property names (without quotes) with JSON-style (with quotes)
-    let cleaned = jsonStr.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
+    cleaned = cleaned.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
 
     // Replace single quotes with double quotes (handling escaped quotes)
     cleaned = cleaned
@@ -203,7 +226,13 @@ export default function FormatMessage({ message }) {
       .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
 
     // Remove trailing commas in objects and arrays
-    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
+
+    // Remove any unescaped newlines inside strings
+    cleaned = cleaned.replace(/([^\\])"([^"]*)\n([^"]*)"/g, '$1"$2 $3"');
+
+    // Remove any control characters
+    cleaned = cleaned.replace(/[\x00-\x1F]/g, " ");
 
     return cleaned;
   };
@@ -214,10 +243,21 @@ export default function FormatMessage({ message }) {
       case "contact":
         return {
           title: "Contact Form",
-          recipientName: "Portfolio Owner",
-          recipientPosition: "Full Stack Developer",
+          recipientName: "Razvan Bordinc",
+          recipientPosition: "Software Engineer",
           emailSubject: "Contact from Portfolio Website",
-          socialLinks: [{ platform: "LinkedIn", url: "#", icon: "linkedin" }],
+          socialLinks: [
+            {
+              platform: "LinkedIn",
+              url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
+              icon: "linkedin",
+            },
+            {
+              platform: "GitHub",
+              url: "https://github.com/RazvanBordinc",
+              icon: "github",
+            },
+          ],
         };
 
       default:

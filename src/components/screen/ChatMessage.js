@@ -1,13 +1,26 @@
 import React, { useEffect, useState, useCallback } from "react";
 import ChatBubble from "./ChatBubble";
+import StreamingBubble from "./StreamingBubble"; // New component for streaming text
 
 export default function ChatMessage({ message }) {
-  const [processedMessage, setProcessedMessage] = useState(message);
+  const [processedMessage, setProcessedMessage] = useState(null);
   const [parseError, setParseError] = useState(null);
+
+  // Process the message when it changes
+  useEffect(() => {
+    if (message) {
+      processMessage(message);
+    }
+  }, [message]);
 
   // Wrap in useCallback to prevent infinite re-renders
   const processMessage = useCallback((originalMessage) => {
-    if (!originalMessage) return;
+    // Check if this is a streaming message
+    if (originalMessage.isStreaming) {
+      // For streaming messages, we'll use a special component
+      setProcessedMessage(originalMessage);
+      return;
+    }
 
     try {
       let processedMsg = { ...originalMessage };
@@ -97,21 +110,19 @@ export default function ChatMessage({ message }) {
       .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
 
     // Remove trailing commas in objects and arrays
-    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
 
     return cleaned;
   };
 
-  // Process the message when it changes
-  useEffect(() => {
-    if (message) {
-      processMessage(message);
-    }
-  }, [message, processMessage]);
-
   // If message is still being processed
   if (!processedMessage) {
     return <div className="animate-pulse">Processing message...</div>;
+  }
+
+  // If this is a streaming message, use the streaming component
+  if (processedMessage.isStreaming) {
+    return <StreamingBubble message={processedMessage} />;
   }
 
   // If there's a parsing error, pass it along with the message
