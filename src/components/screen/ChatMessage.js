@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import ChatBubble from "./ChatBubble";
-import StreamingBubble from "./StreamingBubble"; // New component for streaming text
+import StreamingBubble from "./StreamingBubble"; // Component for streaming text
 
 export default function ChatMessage({ message }) {
   const [processedMessage, setProcessedMessage] = useState(null);
@@ -15,16 +15,19 @@ export default function ChatMessage({ message }) {
 
   // Wrap in useCallback to prevent infinite re-renders
   const processMessage = useCallback((originalMessage) => {
-    // Check if this is a streaming message
-    if (originalMessage.isStreaming) {
-      // For streaming messages, we'll use a special component
-      setProcessedMessage(originalMessage);
-      return;
-    }
+    // Create a copy to avoid modifying the original
+    let processedMsg = { ...originalMessage };
+
+    // Log for debugging (can be removed in production)
+    console.log("ChatMessage processing:", originalMessage);
 
     try {
-      let processedMsg = { ...originalMessage };
-      console.log("ChatMessage processing:", originalMessage);
+      // Check if this is a streaming message
+      if (originalMessage.isStreaming) {
+        // Just pass through streaming messages to the StreamingBubble component
+        setProcessedMessage(processedMsg);
+        return;
+      }
 
       // Extract content properly
       if (
@@ -87,12 +90,17 @@ export default function ChatMessage({ message }) {
         };
       }
 
+      // Important: Make sure isStreaming is explicitly set to false for completed messages
+      processedMsg.isStreaming = false;
+
       setProcessedMessage(processedMsg);
     } catch (error) {
       console.error("Error in processMessage:", error);
       setParseError(error.message);
-      // Keep original message as fallback
-      setProcessedMessage(originalMessage);
+
+      // Keep original message as fallback but make sure isStreaming is correct
+      processedMsg.isStreaming = processedMsg.isStreaming || false;
+      setProcessedMessage(processedMsg);
     }
   }, []);
 

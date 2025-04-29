@@ -1,49 +1,103 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import LogoSvg from "../shared/LogoSvg";
+import TextFormatter from "./Format/TextFormatter";
 
 export default function StreamingBubble({ message }) {
   const [currentContent, setCurrentContent] = useState("");
   const [cursorVisible, setCursorVisible] = useState(true);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(true);
 
-  // Set up the blinking cursor effect
+  // Set up the blinking cursor effect - only when streaming
   useEffect(() => {
-    const cursorInterval = setInterval(() => {
-      setCursorVisible((prev) => !prev);
-    }, 530); // blink every 530ms
+    let cursorInterval;
 
-    return () => clearInterval(cursorInterval);
-  }, []);
+    if (isStreaming) {
+      cursorInterval = setInterval(() => {
+        setCursorVisible((prev) => !prev);
+      }, 530); // blink every 530ms
+    }
+
+    return () => {
+      if (cursorInterval) clearInterval(cursorInterval);
+    };
+  }, [isStreaming]);
 
   // Update the displayed content when the message changes
   useEffect(() => {
+    let content = "";
     if (typeof message.content === "string") {
-      setCurrentContent(message.content);
+      content = message.content;
     } else if (message.content && typeof message.content.text === "string") {
-      setCurrentContent(message.content.text);
+      content = message.content.text;
     }
-  }, [message.content]);
+
+    // If content has changed, trigger the animation
+    if (content !== currentContent) {
+      setIsAnimating(true);
+
+      // Set a timeout to stop the animation after a brief period
+      const timeout = setTimeout(() => {
+        setIsAnimating(false);
+      }, 300);
+
+      // Update the content
+      setCurrentContent(content);
+
+      // Cleanup timeout
+      return () => clearTimeout(timeout);
+    }
+  }, [message.content, currentContent]);
+
+  // Detect when streaming has stopped
+  useEffect(() => {
+    // Check if streaming is complete (message is no longer marked as streaming)
+    if (message.isStreaming === false && isStreaming === true) {
+      setIsStreaming(false);
+      setCursorVisible(false); // Hide cursor when streaming is complete
+    }
+  }, [message.isStreaming, isStreaming]);
 
   return (
     <div className="flex justify-start">
-      {/* Avatar for AI */}
+      {/* Avatar for AI - no animation */}
       <div className="self-end mb-2 mr-2">
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-500/10 dark:bg-indigo-600/20">
           <LogoSvg design="size-16" />
         </div>
       </div>
 
-      {/* Message Bubble */}
-      <div className="max-w-[75%] p-3 rounded-2xl shadow-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none transform transition-all duration-200 hover:shadow-lg">
-        {/* Message Content */}
-        <div className="whitespace-pre-wrap leading-relaxed">
-          {currentContent}
-          <span
-            className={`inline-block w-2 h-4 ml-0.5 bg-indigo-500 dark:bg-indigo-400 ${
-              cursorVisible ? "opacity-100" : "opacity-0"
-            } transition-opacity duration-100`}
-          ></span>
+      {/* Message Bubble - no animation */}
+      <div className="max-w-[75%] p-3 rounded-2xl shadow-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none hover:shadow-lg">
+        {/* Message Content with Animation only for the text chunks */}
+        <div className="whitespace-pre-wrap leading-relaxed relative">
+          {/* Add a highlight effect for new content */}
+          <AnimatePresence>
+            {isAnimating && (
+              <motion.div
+                className="absolute inset-0 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg"
+                initial={{ opacity: 0.7 }}
+                animate={{ opacity: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Format the text with proper styling */}
+          <TextFormatter text={currentContent} />
+
+          {/* Blinking cursor - only shown when streaming */}
+          {isStreaming && (
+            <span
+              className={`inline-block w-2 h-4 ml-0.5 bg-indigo-500 dark:bg-indigo-400 ${
+                cursorVisible ? "opacity-100" : "opacity-0"
+              } transition-opacity duration-100`}
+            ></span>
+          )}
         </div>
 
         {/* Timestamp */}

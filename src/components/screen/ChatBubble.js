@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import LogoSvg from "../shared/LogoSvg";
 import FormatMessage from "./Format/FormatMessage";
+import TextFormatter from "./Format/TextFormatter";
 
 export default function ChatBubble({ message }) {
   const [isAI, setIsAI] = React.useState(false);
@@ -51,7 +52,7 @@ export default function ChatBubble({ message }) {
         </div>
       )}
 
-      {/* Message Bubble */}
+      {/* Message Bubble - NO ANIMATIONS */}
       <div
         className={`
           max-w-[75%] p-3 rounded-2xl 
@@ -60,14 +61,21 @@ export default function ChatBubble({ message }) {
               ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-tr-none shadow-md"
               : message.isError || hasParseError
               ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-tl-none shadow-md"
-              : " text-slate-800 dark:text-slate-200 rounded-tl-none"
+              : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none shadow-md"
           }
-          transform transition-all duration-200 hover:shadow-lg
+          transition-all duration-200 hover:shadow-lg
         `}
       >
         {/* Message Content */}
         {isAI ? (
-          <FormatMessage message={message.content} />
+          typeof message.content === "object" && message.content.format ? (
+            <FormatMessage message={message.content} />
+          ) : (
+            <div className="whitespace-pre-wrap leading-relaxed">
+              {/* Use TextFormatter for AI messages - but without animations */}
+              <TextFormatter text={getMessageContent()} isAnimated={false} />
+            </div>
+          )
         ) : (
           <p className="whitespace-pre-wrap leading-relaxed">
             {getMessageContent()}

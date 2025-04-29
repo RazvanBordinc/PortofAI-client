@@ -105,6 +105,7 @@ export default function ChatInterface() {
       });
 
       clearTimeout(timeoutId);
+      setIsAiTyping(false);
 
       if (!response.ok) {
         console.error(`Error response: ${response.status}`);
@@ -323,7 +324,8 @@ export default function ChatInterface() {
     setIsLoading(false);
   };
 
-  // Send message to backend with streaming support
+  // Replace your entire handleSendMessage function with this fixed version
+
   const handleSendMessage = async (e) => {
     e?.preventDefault(); // Make preventDefault optional for suggestion clicks
     if (!newMessage.trim() || isLoading || isAiTyping || remaining <= 0) return;
@@ -390,52 +392,65 @@ export default function ChatInterface() {
         );
       }
 
-      // Handle the streaming response
+      // Important: Get the reader from the response body
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedText = "";
-      let partialChunk = "";
+      let done = false;
 
-      // Process stream
-      while (true) {
-        const { value, done } = await reader.read();
+      // Use while loop instead of reader.read() pattern for more reliability
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
 
         if (done) {
-          // Stream is complete, break the loop
+          console.log("Stream completed");
+          // Ensure isAiTyping is set to false when the stream completes
+          setIsAiTyping(false);
+          setIsLoading(false);
           break;
         }
 
         // Decode this chunk
         const chunk = decoder.decode(value, { stream: true });
+        console.log("Received chunk:", chunk);
 
-        // Combine with any leftover partial chunk
-        const textToParse = partialChunk + chunk;
+        // Process SSE format
+        const lines = chunk.split("\n\n");
 
-        // Split on double newlines (SSE format: "data: ...\n\n")
-        const parts = textToParse.split("\n\n");
+        for (const line of lines) {
+          if (!line.trim()) continue;
 
-        // The last part might be incomplete
-        partialChunk = parts.pop() || "";
+          try {
+            // Check if it's a heartbeat comment
+            if (line.startsWith(":")) {
+              console.log("Heartbeat received");
+              continue;
+            }
 
-        for (const part of parts) {
-          if (part.trim() === "") continue;
+            // Check for an event name
+            const eventMatch = line.match(/^event: (.+)$/m);
+            const eventName = eventMatch ? eventMatch[1] : null;
 
-          // Check if this is the completion event
-          if (part.startsWith("event: done")) {
-            // Extract data after "data: "
-            const dataStart = part.indexOf("data: ");
-            if (dataStart >= 0) {
+            // Extract data content
+            const dataMatch = line.match(/^data: (.+)$/m);
+            if (!dataMatch) continue;
+
+            const dataContent = dataMatch[1];
+
+            // Handle different event types
+            if (eventName === "done") {
+              console.log("Received done event");
               try {
-                const dataJson = part.substring(dataStart + 6); // "data: " is 6 chars
-                const completionData = JSON.parse(dataJson);
+                const completionData = JSON.parse(dataContent);
 
-                if (completionData.done && completionData.fullText) {
+                if (completionData.done) {
                   // Process the full response to check for format tags, etc.
                   const processedContent = processCompletedResponse(
-                    completionData.fullText
+                    completionData.fullText || ""
                   );
 
-                  // Update the message with the processed content
+                  // Update the message with the processed content and mark streaming as complete
                   setMessages((prev) =>
                     prev.map((msg) =>
                       msg.id === streamingMessageId
@@ -447,45 +462,86 @@ export default function ChatInterface() {
                         : msg
                     )
                   );
+
+                  // CRITICAL: Ensure we disable AI typing state to re-enable input
+                  setIsAiTyping(false);
+                  setIsLoading(false);
                 }
               } catch (error) {
                 console.error("Error parsing completion data:", error);
+
+                // Even with parse error, ensure AI typing is disabled
+                setIsAiTyping(false);
+                setIsLoading(false);
+
+                // Mark streaming as complete
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === streamingMessageId
+                      ? {
+                          ...msg,
+                          isStreaming: false,
+                        }
+                      : msg
+                  )
+                );
               }
+            } else if (eventName === "message") {
+              // Regular message event - unescape special characters
+              const textChunk = dataContent
+                .replace(/\\n/g, "\n")
+                .replace(/\\r/g, "\r");
+
+              // Add to accumulated text
+              accumulatedText += textChunk;
+
+              // Update the message with the accumulated text
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: accumulatedText }
+                    : msg
+                )
+              );
+            } else {
+              // No event name or unknown event - treat as a plain data chunk
+              // Unescape special characters
+              const textChunk = dataContent
+                .replace(/\\n/g, "\n")
+                .replace(/\\r/g, "\r");
+
+              // Add to accumulated text
+              accumulatedText += textChunk;
+
+              // Update the message with the accumulated text
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: accumulatedText }
+                    : msg
+                )
+              );
             }
-            continue;
-          }
-
-          // Regular data event
-          const dataStart = part.indexOf("data: ");
-          if (dataStart >= 0) {
-            const data = part.substring(dataStart + 6); // "data: " is 6 chars
-
-            // Process escaped characters (\n, \r)
-            const textChunk = data.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
-
-            // Add to accumulated text
-            accumulatedText += textChunk;
-
-            // Update the message with the accumulated text
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === streamingMessageId
-                  ? { ...msg, content: accumulatedText }
-                  : msg
-              )
-            );
+          } catch (error) {
+            console.error("Error processing SSE line:", error, line);
           }
         }
       }
 
       clearTimeout(timeoutId);
+
+      // Double ensure these states are cleared properly
       setIsAiTyping(false);
+      setIsLoading(false);
 
       // Update remaining requests
       fetchRemainingRequests();
     } catch (error) {
       console.error("Error sending message:", error);
+
+      // Clear loading and typing states
       setIsAiTyping(false);
+      setIsLoading(false);
 
       // Replace the streaming message with an error message
       setMessages((prev) =>
@@ -504,13 +560,12 @@ export default function ChatInterface() {
                 },
                 sender: "ai",
                 isError: true,
+                isStreaming: false, // Explicitly mark as not streaming
                 timestamp: new Date().toISOString(),
               }
             : msg
         )
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
