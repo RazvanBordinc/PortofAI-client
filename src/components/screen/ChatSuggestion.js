@@ -49,8 +49,10 @@ export default function ChatSuggestion({ onSelectSuggestion, distance }) {
     show: { opacity: 1, y: 0 },
   };
 
-  // Handle suggestion click - directly send it rather than just filling the input
+  // Handle suggestion click - directly call parent handler
   const handleSuggestionClick = (text) => {
+    console.log("ChatSuggestion: Suggestion clicked:", text);
+    // FIXED: This directly calls the parent handler instead of just setting input value
     onSelectSuggestion(text);
   };
 
@@ -78,6 +80,7 @@ export default function ChatSuggestion({ onSelectSuggestion, distance }) {
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
                 text-black dark:text-white shadow-sm transition-all duration-300
                 border border-white/20 dark:border-slate-700/50 hover:shadow-md cursor-pointer`}
+              type="button" // Explicitly setting button type to avoid form submission
             >
               <span className="opacity-70">{suggestion.icon}</span>
               <span>{suggestion.text}</span>

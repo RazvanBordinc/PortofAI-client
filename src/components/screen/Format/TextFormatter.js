@@ -224,7 +224,7 @@ const NormalText = ({ text, isAnimated }) => {
 // Bold text component
 const BoldText = ({ text, isAnimated }) => {
   const element = (
-    <strong className="font-bold text-indigo-800 dark:text-indigo-300">
+    <strong className="font-bold text-amber-800 dark:text-amber-300">
       {text}
     </strong>
   );
@@ -245,7 +245,7 @@ const BoldText = ({ text, isAnimated }) => {
 // Italic text component
 const ItalicText = ({ text, isAnimated }) => {
   const element = (
-    <em className="italic text-indigo-700 dark:text-indigo-400">{text}</em>
+    <em className="italic text-amber-700 dark:text-amber-400">{text}</em>
   );
 
   if (!isAnimated) return element;
@@ -342,7 +342,7 @@ const EmailText = ({ email, isAnimated }) => {
   const element = (
     <a
       href={mailtoUrl}
-      className="inline-flex items-center rounded-md py-1 px-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors cursor-pointer no-underline"
+      className="inline-flex items-center rounded-md py-1 px-2 bg-indigo-50 dark:bg-indigo-900/30 text-amber-600 dark:text-amber-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors cursor-pointer no-underline"
     >
       <Mail size={14} className="mr-1.5 flex-shrink-0" />
       <span>{email}</span>

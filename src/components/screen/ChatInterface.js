@@ -105,7 +105,6 @@ export default function ChatInterface() {
       });
 
       clearTimeout(timeoutId);
-      setIsAiTyping(false);
 
       if (!response.ok) {
         console.error(`Error response: ${response.status}`);
@@ -299,16 +298,58 @@ export default function ChatInterface() {
     setIsAiTyping(false);
   };
 
-  // Handle suggestion selection
+  // FIXED: Handle suggestion selection - properly sends the message immediately
   const handleSuggestionSelect = (text) => {
-    if (isAiTyping) return; // Don't allow new suggestions while AI is typing
-    setNewMessage(text);
+    console.log("Suggestion selected:", text);
 
-    // Use a small timeout to ensure state update before sending
-    setTimeout(() => {
-      handleSendMessage();
-    }, 10);
+    // Don't proceed if already busy
+    if (isAiTyping || isLoading || remaining <= 0) {
+      console.log("Cannot process suggestion - busy or rate limited");
+      return;
+    }
+
+    // Create a user message object
+    const userMessage = {
+      id: Date.now(),
+      content: text.trim(),
+      sender: "user",
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log("Created user message:", userMessage);
+
+    // Add user message to chat
+    setMessages((prev) => [...prev, userMessage]);
+    setCurrentUserMessage(userMessage);
+    setLastUserMessage(userMessage);
+
+    // Clear input field
+    setNewMessage("");
+
+    // Set loading states
+    setIsLoading(true);
+    setIsAiTyping(true);
+    setIsFetchError(false);
+
+    // Create a streaming message placeholder
+    const streamingMessageId = Date.now() + 1;
+    const streamingMessage = {
+      id: streamingMessageId,
+      content: "",
+      sender: "ai",
+      timestamp: new Date().toISOString(),
+      isStreaming: true,
+    };
+
+    // Add the streaming message to the chat
+    setMessages((prev) => [...prev, streamingMessage]);
+
+    console.log("Added streaming message placeholder. Calling API...");
+
+    // Direct call to the API handling function
+    sendMessageToApi(userMessage, streamingMessageId);
   };
+
   const processUrlsAndEmails = (text) => {
     if (typeof text !== "string") return text;
 
@@ -364,15 +405,17 @@ export default function ChatInterface() {
 
     return text;
   };
-  // Toggle style menu
+
+  // FIXED: Toggle style menu without sending message
   const toggleStyleMenu = () => {
     setIsStyleMenuOpen(!isStyleMenuOpen);
   };
 
-  // Handle style selection
+  // FIXED: Handle style selection without sending message
   const handleStyleSelect = (style) => {
     setSelectedStyle(style);
     setIsStyleMenuOpen(false);
+    // No longer triggers message sending
   };
 
   // Handle stop AI
@@ -381,8 +424,219 @@ export default function ChatInterface() {
     setIsLoading(false);
   };
 
-  // Replace your entire handleSendMessage function with this fixed version
+  // Extract API call logic to a separate function
+  const sendMessageToApi = async (userMessage, streamingMessageId) => {
+    console.log("Sending message to API:", userMessage.content);
 
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
+
+      // Abort controller for the fetch request with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      console.log(`Sending message to API with style: ${selectedStyle}`);
+
+      // Start the streaming request
+      const response = await fetch(`${apiUrl}/api/chat/stream`, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+        },
+        body: JSON.stringify({
+          message: userMessage.content,
+          style: selectedStyle,
+        }),
+      });
+
+      // Check for errors in the response
+      if (!response.ok) {
+        clearTimeout(timeoutId);
+        const errorText = await response.text().catch(() => "Unknown error");
+        throw new Error(`Error: ${response.status} - ${errorText}`);
+      }
+
+      // Check if we have a readable stream
+      if (!response.body) {
+        throw new Error("No response body stream available");
+      }
+
+      // Get the reader from the response body
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedText = "";
+      let done = false;
+
+      // Process the stream chunks
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+
+        if (done) {
+          console.log("Stream completed");
+          setIsAiTyping(false);
+          setIsLoading(false);
+          break;
+        }
+
+        // Decode this chunk
+        const chunk = decoder.decode(value, { stream: true });
+        console.log("Received chunk:", chunk.length);
+
+        // Process SSE format
+        const lines = chunk.split("\n\n");
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            // Check if it's a heartbeat comment
+            if (line.startsWith(":")) {
+              console.log("Heartbeat received");
+              continue;
+            }
+
+            // Check for an event name
+            const eventMatch = line.match(/^event: (.+)$/m);
+            const eventName = eventMatch ? eventMatch[1] : null;
+
+            // Extract data content
+            const dataMatch = line.match(/^data: (.+)$/m);
+            if (!dataMatch) continue;
+
+            const dataContent = dataMatch[1];
+
+            // Handle different event types
+            if (eventName === "done") {
+              console.log("Received done event");
+              try {
+                const completionData = JSON.parse(dataContent);
+
+                if (completionData.done) {
+                  // Process the full response
+                  const processedContent = processCompletedResponse(
+                    completionData.fullText || ""
+                  );
+
+                  // Update the message with the processed content
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === streamingMessageId
+                        ? {
+                            ...msg,
+                            content: processedContent,
+                            isStreaming: false,
+                            originalText: completionData.fullText,
+                          }
+                        : msg
+                    )
+                  );
+
+                  // Clear loading states
+                  setIsAiTyping(false);
+                  setIsLoading(false);
+                }
+              } catch (error) {
+                console.error("Error parsing completion data:", error);
+                setIsAiTyping(false);
+                setIsLoading(false);
+
+                // Keep any accumulated text
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === streamingMessageId
+                      ? {
+                          ...msg,
+                          isStreaming: false,
+                          content: accumulatedText || msg.content,
+                        }
+                      : msg
+                  )
+                );
+              }
+            } else if (eventName === "message") {
+              // Regular message event - unescape special characters
+              const textChunk = dataContent
+                .replace(/\\n/g, "\n")
+                .replace(/\\r/g, "\r");
+
+              // Add to accumulated text
+              accumulatedText += textChunk;
+
+              // Update the message with the accumulated text
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: accumulatedText }
+                    : msg
+                )
+              );
+            } else {
+              // No event name or unknown event - treat as plain data
+              const textChunk = dataContent
+                .replace(/\\n/g, "\n")
+                .replace(/\\r/g, "\r");
+
+              // Add to accumulated text
+              accumulatedText += textChunk;
+
+              // Update the message
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: accumulatedText }
+                    : msg
+                )
+              );
+            }
+          } catch (error) {
+            console.error("Error processing SSE line:", error, line);
+          }
+        }
+      }
+
+      clearTimeout(timeoutId);
+      setIsAiTyping(false);
+      setIsLoading(false);
+
+      // Update remaining requests count
+      fetchRemainingRequests();
+    } catch (error) {
+      console.error("Error sending message:", error);
+
+      // Clear loading states
+      setIsAiTyping(false);
+      setIsLoading(false);
+
+      // Replace the streaming message with an error message
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === streamingMessageId
+            ? {
+                id: streamingMessageId,
+                content: {
+                  text:
+                    error.name === "AbortError"
+                      ? "The request took too long to complete. Please try again later."
+                      : error.message && error.message.includes("503")
+                      ? "The AI service is temporarily unavailable. Please try again in a few moments."
+                      : "Sorry, there was an error processing your request. Please try again later.",
+                  format: "text",
+                },
+                sender: "ai",
+                isError: true,
+                isStreaming: false,
+                timestamp: new Date().toISOString(),
+              }
+            : msg
+        )
+      );
+    }
+  };
+
+  // Handle send message - uses sendMessageToApi
   const handleSendMessage = async (e) => {
     e?.preventDefault(); // Make preventDefault optional for suggestion clicks
     if (!newMessage.trim() || isLoading || isAiTyping || remaining <= 0) return;
@@ -416,217 +670,8 @@ export default function ChatInterface() {
     // Add the streaming message to the chat
     setMessages((prev) => [...prev, streamingMessage]);
 
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
-
-      // Abort controller for the fetch request
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-
-      console.log(`Sending message to API with style: ${selectedStyle}`);
-
-      // Start the streaming request
-      const response = await fetch(`${apiUrl}/api/chat/stream`, {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "text/event-stream",
-        },
-        body: JSON.stringify({
-          message: userMessage.content,
-          style: selectedStyle,
-        }),
-      });
-
-      // Check for errors
-      if (!response.ok) {
-        clearTimeout(timeoutId);
-        throw new Error(
-          `Error: ${response.status} - ${await response
-            .text()
-            .catch(() => "Unknown error")}`
-        );
-      }
-
-      // Important: Get the reader from the response body
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedText = "";
-      let done = false;
-
-      // Use while loop instead of reader.read() pattern for more reliability
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-
-        if (done) {
-          console.log("Stream completed");
-          // Ensure isAiTyping is set to false when the stream completes
-          setIsAiTyping(false);
-          setIsLoading(false);
-          break;
-        }
-
-        // Decode this chunk
-        const chunk = decoder.decode(value, { stream: true });
-        console.log("Received chunk:", chunk);
-
-        // Process SSE format
-        const lines = chunk.split("\n\n");
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-
-          try {
-            // Check if it's a heartbeat comment
-            if (line.startsWith(":")) {
-              console.log("Heartbeat received");
-              continue;
-            }
-
-            // Check for an event name
-            const eventMatch = line.match(/^event: (.+)$/m);
-            const eventName = eventMatch ? eventMatch[1] : null;
-
-            // Extract data content
-            const dataMatch = line.match(/^data: (.+)$/m);
-            if (!dataMatch) continue;
-
-            const dataContent = dataMatch[1];
-
-            // Handle different event types
-            if (eventName === "done") {
-              console.log("Received done event");
-              try {
-                const completionData = JSON.parse(dataContent);
-
-                if (completionData.done) {
-                  // Process the full response to check for format tags, etc.
-                  const processedContent = processCompletedResponse(
-                    completionData.fullText || ""
-                  );
-
-                  // Update the message with the processed content and mark streaming as complete
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === streamingMessageId
-                        ? {
-                            ...msg,
-                            content: processedContent,
-                            isStreaming: false,
-                            originalText: completionData.fullText, // Store original text to preserve formatting
-                          }
-                        : msg
-                    )
-                  );
-
-                  // CRITICAL: Ensure we disable AI typing state to re-enable input
-                  setIsAiTyping(false);
-                  setIsLoading(false);
-                }
-              } catch (error) {
-                console.error("Error parsing completion data:", error);
-
-                // Even with parse error, ensure AI typing is disabled
-                setIsAiTyping(false);
-                setIsLoading(false);
-
-                // Mark streaming as complete but preserve any accumulated text
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === streamingMessageId
-                      ? {
-                          ...msg,
-                          isStreaming: false,
-                          // If we have accumulated text, use that
-                          content: accumulatedText || msg.content,
-                        }
-                      : msg
-                  )
-                );
-              }
-            } else if (eventName === "message") {
-              // Regular message event - unescape special characters
-              const textChunk = dataContent
-                .replace(/\\n/g, "\n")
-                .replace(/\\r/g, "\r");
-
-              // Add to accumulated text
-              accumulatedText += textChunk;
-
-              // Update the message with the accumulated text
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === streamingMessageId
-                    ? { ...msg, content: accumulatedText }
-                    : msg
-                )
-              );
-            } else {
-              // No event name or unknown event - treat as a plain data chunk
-              // Unescape special characters
-              const textChunk = dataContent
-                .replace(/\\n/g, "\n")
-                .replace(/\\r/g, "\r");
-
-              // Add to accumulated text
-              accumulatedText += textChunk;
-
-              // Update the message with the accumulated text
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === streamingMessageId
-                    ? { ...msg, content: accumulatedText }
-                    : msg
-                )
-              );
-            }
-          } catch (error) {
-            console.error("Error processing SSE line:", error, line);
-          }
-        }
-      }
-
-      clearTimeout(timeoutId);
-
-      // Double ensure these states are cleared properly
-      setIsAiTyping(false);
-      setIsLoading(false);
-
-      // Update remaining requests
-      fetchRemainingRequests();
-    } catch (error) {
-      console.error("Error sending message:", error);
-
-      // Clear loading and typing states
-      setIsAiTyping(false);
-      setIsLoading(false);
-
-      // Replace the streaming message with an error message
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === streamingMessageId
-            ? {
-                id: streamingMessageId,
-                content: {
-                  text:
-                    error.name === "AbortError"
-                      ? "The request took too long to complete. Please try again later."
-                      : error.message && error.message.includes("503")
-                      ? "The AI service is temporarily unavailable. Please try again in a few moments."
-                      : "Sorry, there was an error processing your request. Please try again later.",
-                  format: "text",
-                },
-                sender: "ai",
-                isError: true,
-                isStreaming: false, // Explicitly mark as not streaming
-                timestamp: new Date().toISOString(),
-              }
-            : msg
-        )
-      );
-    }
+    // Call the API
+    await sendMessageToApi(userMessage, streamingMessageId);
   };
 
   // Get connection status message
