@@ -233,9 +233,45 @@ export default function ChatInterface() {
       ],
     };
   };
+  const cleanResponseText = (text) => {
+    if (!text) return text;
 
-  // Process the completed full response to handle format tags
+    // Remove trailing JSON artifacts that appear frequently
+    let cleaned = text.replace(/[\}\]:\}\]]+$/, "");
+
+    // Fix malformed markdown links with extra closing parentheses
+    cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)\)+/g, "[$1]($2)");
+
+    // Fix links with extra brackets or braces
+    cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)[\)\}\]]+/g, "[$1]($2)");
+
+    // Clean up any Markdown link issues with encoded characters
+    cleaned = cleaned.replace(
+      /\[([^\]]+)\]\(([^)]+)%([^)]+)\)/g,
+      (match, text, url1, url2) => {
+        // Only fix if it's not already a properly encoded URL
+        if (
+          !url1.includes("%2") &&
+          !url1.includes("%3") &&
+          !url1.includes("%4")
+        ) {
+          // This is likely a malformed URL encoding
+          return `[${text}](${url1}%${url2})`;
+        }
+        return match; // Leave properly encoded URLs alone
+      }
+    );
+
+    // Remove any stray JSON characters
+    cleaned = cleaned.replace(/[\{\}\[\]]+$/g, "");
+
+    return cleaned;
+  };
+  // Enhanced processCompletedResponse function
   const processCompletedResponse = (fullText) => {
+    // Apply the text cleaning first to fix any formatting issues
+    fullText = cleanResponseText(fullText);
+
     // Check for format tags in the text
     let format = "text"; // Default format
     const formatMatch = fullText.match(/\[format:(text|contact)\]/i);
@@ -251,8 +287,7 @@ export default function ChatInterface() {
       try {
         // Clean and parse the JSON data
         let jsonString = dataMatch[1].trim();
-        jsonString = fixTruncatedJson(jsonString);
-        jsonString = cleanJsonString(jsonString);
+        jsonString = fixTruncatedOrMalformedJson(jsonString);
 
         try {
           formatData = JSON.parse(jsonString);
@@ -405,17 +440,161 @@ export default function ChatInterface() {
 
     return text;
   };
+  // Improved fixTruncatedOrMalformedJson function
+  const fixTruncatedOrMalformedJson = (jsonStr) => {
+    if (!jsonStr) return jsonStr;
 
+    // Store original for comparison
+    const original = jsonStr;
+    let cleaned = jsonStr;
+
+    // Remove any leading/trailing whitespace
+    cleaned = cleaned.trim();
+
+    // Count opening and closing braces/brackets to check for balance
+    const openBraces = (cleaned.match(/{/g) || []).length;
+    const closeBraces = (cleaned.match(/}/g) || []).length;
+    const openBrackets = (cleaned.match(/\[/g) || []).length;
+    const closeBrackets = (cleaned.match(/\]/g) || []).length;
+
+    // Fix missing quotes around property names
+    cleaned = cleaned.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
+
+    // Fix single quotes to double quotes, preserving escaped quotes
+    cleaned = cleaned
+      .replace(/\\'/g, "\\TEMP_QUOTE") // Temporarily replace escaped single quotes
+      .replace(/'/g, '"') // Replace all single quotes with double quotes
+      .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
+
+    // Remove trailing commas in objects and arrays
+    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
+
+    // Remove any unescaped newlines inside strings
+    cleaned = cleaned.replace(/([^\\])"([^"]*)\n([^"]*)"/g, '$1"$2 $3"');
+
+    // Balance brackets if needed
+    if (openBraces > closeBraces) {
+      for (let i = 0; i < openBraces - closeBraces; i++) {
+        cleaned += "}";
+      }
+    }
+
+    if (openBrackets > closeBrackets) {
+      for (let i = 0; i < openBrackets - closeBrackets; i++) {
+        cleaned += "]";
+      }
+    }
+
+    // If we're looking at contact form data, make sure the JSON is valid
+    if (cleaned.includes("socialLinks") && cleaned.includes("platform")) {
+      try {
+        // Test parsing
+        JSON.parse(cleaned);
+      } catch (error) {
+        console.error("Contact form JSON still invalid after cleaning:", error);
+
+        // Aggressive fix for common contact form issues
+        if (cleaned.includes("socialLinks") && !cleaned.endsWith("}")) {
+          // Try to fix missing closing brackets
+          if (cleaned.endsWith("]")) {
+            cleaned += "}";
+          } else if (!cleaned.endsWith("]}")) {
+            cleaned += "]}";
+          }
+        }
+
+        try {
+          // Verify the fix worked
+          JSON.parse(cleaned);
+          console.log(
+            "Successfully fixed contact form JSON with aggressive cleanup"
+          );
+        } catch (finalError) {
+          console.error(
+            "Could not fix contact form JSON even with aggressive cleanup"
+          );
+          // Return the cleaned version anyway - createDefaultContactData will be used as fallback
+        }
+      }
+    }
+
+    // Log if changes were made
+    if (cleaned !== original) {
+      console.log(
+        "JSON fixed from:",
+        original.substring(0, 100) + (original.length > 100 ? "..." : "")
+      );
+      console.log(
+        "JSON fixed to:",
+        cleaned.substring(0, 100) + (cleaned.length > 100 ? "..." : "")
+      );
+    }
+
+    return cleaned;
+  };
+
+  // Update the SSE event handling code in ChatInterface.js
+
+  // Inside the "done" event handling:
+  if (eventName === "done") {
+    console.log("Received done event");
+    try {
+      const completionData = JSON.parse(dataContent);
+
+      if (completionData.done) {
+        // Clean the full text before processing
+        let cleanedFullText = cleanResponseText(completionData.fullText || "");
+
+        // Process the cleaned response
+        const processedContent = processCompletedResponse(cleanedFullText);
+
+        // Update the message with the processed content
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === streamingMessageId
+              ? {
+                  ...msg,
+                  content: processedContent,
+                  isStreaming: false,
+                  originalText: completionData.fullText,
+                }
+              : msg
+          )
+        );
+
+        // Clear loading states
+        setIsAiTyping(false);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error("Error parsing completion data:", error);
+      setIsAiTyping(false);
+      setIsLoading(false);
+
+      // Keep any accumulated text but clean it first
+      const cleanedText = cleanResponseText(accumulatedText);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === streamingMessageId
+            ? {
+                ...msg,
+                isStreaming: false,
+                content: cleanedText || msg.content,
+                parseError: error.message,
+              }
+            : msg
+        )
+      );
+    }
+  }
   // FIXED: Toggle style menu without sending message
   const toggleStyleMenu = () => {
     setIsStyleMenuOpen(!isStyleMenuOpen);
   };
 
-  // FIXED: Handle style selection without sending message
   const handleStyleSelect = (style) => {
     setSelectedStyle(style);
     setIsStyleMenuOpen(false);
-    // No longer triggers message sending
   };
 
   // Handle stop AI
@@ -515,10 +694,14 @@ export default function ChatInterface() {
                 const completionData = JSON.parse(dataContent);
 
                 if (completionData.done) {
-                  // Process the full response
-                  const processedContent = processCompletedResponse(
+                  // IMPROVED: Clean the full text before processing
+                  let cleanedFullText = cleanResponseText(
                     completionData.fullText || ""
                   );
+
+                  // Process the full response
+                  const processedContent =
+                    processCompletedResponse(cleanedFullText);
 
                   // Update the message with the processed content
                   setMessages((prev) =>
@@ -543,14 +726,15 @@ export default function ChatInterface() {
                 setIsAiTyping(false);
                 setIsLoading(false);
 
-                // Keep any accumulated text
+                // Keep any accumulated text but clean it
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === streamingMessageId
                       ? {
                           ...msg,
                           isStreaming: false,
-                          content: accumulatedText || msg.content,
+                          content:
+                            cleanResponseText(accumulatedText) || msg.content,
                         }
                       : msg
                   )
@@ -565,34 +749,20 @@ export default function ChatInterface() {
               // Add to accumulated text
               accumulatedText += textChunk;
 
+              // IMPROVED: Clean the accumulated text before updating
+              const cleanedText = cleanResponseText(accumulatedText);
+
               // Update the message with the accumulated text
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === streamingMessageId
-                    ? { ...msg, content: accumulatedText }
-                    : msg
-                )
-              );
-            } else {
-              // No event name or unknown event - treat as plain data
-              const textChunk = dataContent
-                .replace(/\\n/g, "\n")
-                .replace(/\\r/g, "\r");
-
-              // Add to accumulated text
-              accumulatedText += textChunk;
-
-              // Update the message
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === streamingMessageId
-                    ? { ...msg, content: accumulatedText }
+                    ? { ...msg, content: cleanedText }
                     : msg
                 )
               );
             }
           } catch (error) {
-            console.error("Error processing SSE line:", error, line);
+            console.error("Error processing SSE line:", error);
           }
         }
       }
@@ -811,22 +981,28 @@ export default function ChatInterface() {
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ duration: 0.15, ease: "easeOut" }}
                         className="absolute bottom-full right-0 mb-2 w-44 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-10 overflow-hidden"
+                        onClick={(e) => e.stopPropagation()} // Stop any clicks from reaching the form
                       >
                         <div className="py-1">
                           {styleOptions.map((style) => (
                             <motion.button
                               key={style.id}
-                              onClick={() => handleStyleSelect(style.id)}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault(); // Prevent form submission
+                                e.stopPropagation(); // Stop event propagation
+                                handleStyleSelect(style.id);
+                              }}
                               whileHover={{
                                 backgroundColor: "rgba(99, 102, 241, 0.1)",
                               }}
                               whileTap={{ scale: 0.98 }}
                               className={`flex items-center justify-between w-full px-4 py-2 text-sm text-left relative cursor-pointer
-                                ${
-                                  selectedStyle === style.id
-                                    ? "text-indigo-600 dark:text-indigo-400 font-medium"
-                                    : "text-slate-700 dark:text-slate-300"
-                                }`}
+                              ${
+                                selectedStyle === style.id
+                                  ? "text-indigo-600 dark:text-indigo-400 font-medium"
+                                  : "text-slate-700 dark:text-slate-300"
+                              }`}
                             >
                               <span className="absolute left-2">
                                 {style.icon}

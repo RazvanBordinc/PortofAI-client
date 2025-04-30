@@ -1,5 +1,5 @@
 "use client";
-
+import cleanResponseText from "@/utils/cleanResponseText";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import LogoSvg from "../shared/LogoSvg";
@@ -36,20 +36,23 @@ export default function StreamingBubble({ message }) {
       content = message.content.text;
     }
 
-    // If content has changed, trigger the animation
+    // If content has changed, clean it first, then trigger the animation
     if (content !== currentContent) {
       setIsAnimating(true);
+
+      // Clean the content before setting it
+      const cleanedContent = cleanResponseText(content);
 
       // Set a timeout to stop the animation after a brief period
       const timeout = setTimeout(() => {
         setIsAnimating(false);
       }, 300);
 
-      // Update the content
-      setCurrentContent(content);
+      // Update the content with the cleaned version
+      setCurrentContent(cleanedContent);
 
       // Check for rich content (emails, links, etc.)
-      checkForRichContent(content);
+      checkForRichContent(cleanedContent);
 
       // Cleanup timeout
       return () => clearTimeout(timeout);

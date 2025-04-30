@@ -31,8 +31,11 @@ const processText = (text, isAnimated) => {
       .slice(i)
       .match(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/);
 
-    // Look for URL pattern (http:// or https://)
-    const urlMatch = text.slice(i).match(/\bhttps?:\/\/\S+\b/);
+    // IMPROVED: More robust URL pattern that handles various URL formats
+    const urlMatch = text.slice(i).match(/\bhttps?:\/\/[^\s)\]]+/);
+
+    // IMPROVED: Better markdown link detection that prevents double parsing
+    const linkMatch = text.slice(i).match(/\[([^\]]+)\]\(([^)]+)\)/);
 
     // Look for markdown bold pattern
     const boldMatch = text.slice(i).match(/\*\*(.*?)\*\*/);
@@ -44,9 +47,6 @@ const processText = (text, isAnimated) => {
 
     // Look for markdown code pattern
     const codeMatch = text.slice(i).match(/`([^`]+)`/);
-
-    // Look for markdown link pattern
-    const linkMatch = text.slice(i).match(/\[(.*?)\]\((.*?)\)/);
 
     // Determine the closest match
     const matches = [];
@@ -160,11 +160,18 @@ const processText = (text, isAnimated) => {
           break;
 
         case "link":
+          // IMPROVED: Clean both text and URL parts of the link
+          let linkText = closestMatch.match[1].trim();
+          let linkUrl = closestMatch.match[2].trim();
+
+          // Remove any trailing parentheses or brackets from the URL
+          linkUrl = linkUrl.replace(/[\)\}\]]+$/, "");
+
           components.push(
             <LinkText
               key={key++}
-              text={closestMatch.match[1]}
-              url={closestMatch.match[2]}
+              text={linkText}
+              url={linkUrl}
               isAnimated={isAnimated}
             />
           );

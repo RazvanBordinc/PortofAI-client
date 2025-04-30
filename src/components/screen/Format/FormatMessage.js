@@ -139,8 +139,8 @@ export default function FormatMessage({ message }) {
           // Log the string for debugging
           console.log("Raw JSON data:", jsonStr);
 
-          // Try to clean up common JSON issues
-          jsonStr = cleanJsonString(jsonStr);
+          // IMPROVED: Use the enhanced JSON cleaning function
+          jsonStr = fixTruncatedOrMalformedJson(jsonStr);
           console.log("Cleaned JSON data:", jsonStr);
 
           // Try parsing the cleaned JSON
@@ -151,30 +151,28 @@ export default function FormatMessage({ message }) {
             console.error("JSON parsing error after cleaning:", parseError);
 
             // One more attempt with a more aggressive cleanup
-            jsonStr = jsonStr
-              .replace(/\}\s*\]/g, "}]")
-              .replace(/\]\s*\}/g, "]}");
             try {
-              extractedData = JSON.parse(jsonStr);
-              console.log("Successfully parsed JSON after aggressive cleaning");
+              // If it's a contact form, try to build a basic structure
+              if (
+                formatType === "contact" ||
+                jsonStr.includes("Contact Form") ||
+                jsonStr.includes("recipientName") ||
+                jsonStr.includes("socialLinks")
+              ) {
+                extractedData = createDefaultFormData();
+                console.log(
+                  "Created default contact form data after parse failure"
+                );
+              }
             } catch (finalError) {
               console.error("Final JSON parsing error:", finalError);
-              // Fall back to default data
               extractedData = createFallbackData(formatType);
-              throw new Error(
-                `Could not parse JSON data: ${finalError.message}`
-              );
             }
           }
 
           cleanedText = cleanedText.replace(dataMatch[0], "");
         } catch (error) {
-          console.error(
-            "Error handling JSON data:",
-            error,
-            "JSON string:",
-            dataMatch[1].substring(0, 100)
-          );
+          console.error("Error handling JSON data:", error);
 
           // Create fallback data based on format type
           extractedData = createFallbackData(formatType);
@@ -204,7 +202,58 @@ export default function FormatMessage({ message }) {
       };
     }
   };
+  const fixTruncatedOrMalformedJson = (jsonStr) => {
+    if (!jsonStr) return jsonStr;
 
+    // Store original for comparison
+    const original = jsonStr;
+    let cleaned = jsonStr;
+
+    // Remove any leading/trailing whitespace
+    cleaned = cleaned.trim();
+
+    // Count opening and closing braces/brackets
+    const openBraces = (cleaned.match(/{/g) || []).length;
+    const closeBraces = (cleaned.match(/}/g) || []).length;
+    const openBrackets = (cleaned.match(/\[/g) || []).length;
+    const closeBrackets = (cleaned.match(/\]/g) || []).length;
+
+    // Fix missing quotes around property names
+    cleaned = cleaned.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
+
+    // Fix single quotes to double quotes, preserving escaped quotes
+    cleaned = cleaned
+      .replace(/\\'/g, "\\TEMP_QUOTE") // Temporarily replace escaped single quotes
+      .replace(/'/g, '"') // Replace all single quotes with double quotes
+      .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
+
+    // Remove trailing commas in objects and arrays
+    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
+
+    // Remove any unescaped newlines inside strings
+    cleaned = cleaned.replace(/([^\\])"([^"]*)\n([^"]*)"/g, '$1"$2 $3"');
+
+    // Balance brackets if needed
+    if (openBraces > closeBraces) {
+      for (let i = 0; i < openBraces - closeBraces; i++) {
+        cleaned += "}";
+      }
+    }
+
+    if (openBrackets > closeBrackets) {
+      for (let i = 0; i < openBrackets - closeBrackets; i++) {
+        cleaned += "]";
+      }
+    }
+
+    // Log if changes were made
+    if (cleaned !== original) {
+      console.log("JSON fixed from:", original);
+      console.log("JSON fixed to:", cleaned);
+    }
+
+    return cleaned;
+  };
   // Clean up a JSON string to fix common formatting errors
   const cleanJsonString = (jsonStr) => {
     if (!jsonStr) return jsonStr;
