@@ -289,7 +289,7 @@ const LinkText = ({ text, url, isAnimated }) => {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+      className="text-amber-600 dark:text-amber-400 underline hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
     >
       {text}
     </a>
@@ -315,7 +315,7 @@ const UrlText = ({ url, isAnimated }) => {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center rounded-md py-1 px-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors cursor-pointer no-underline text-sm"
+      className="inline-flex items-center rounded-md py-1 px-2 bg-blue-50 dark:bg-blue-900/30 text-amber-600 dark:text-amber-300 hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors cursor-pointer no-underline text-sm"
     >
       <ExternalLink size={14} className="mr-1.5 flex-shrink-0" />
       <span className="truncate max-w-[200px]">{url}</span>
