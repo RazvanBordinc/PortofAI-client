@@ -1,21 +1,63 @@
+"use client";
+
 import React, { useEffect, useState, useCallback } from "react";
 import ContactForm from "./ContactForm";
 import TextFormatter from "./TextFormatter";
+import { fixTruncatedOrMalformedJson } from "@/lib/utils/textCleaners";
+
+// Helper function for logging - reduce console spam
+const DEBUG = false;
+const debugLog = (...args) => {
+  if (DEBUG) {
+    console.log(...args);
+  }
+};
+
+// Define all helper functions at the module level, not inside components
+
+const createDefaultFormData = () => {
+  return {
+    title: "Contact Form",
+    recipientName: "Razvan Bordinc",
+    recipientPosition: "Software Engineer",
+    emailSubject: "Contact from Portfolio Website",
+    socialLinks: [
+      {
+        platform: "LinkedIn",
+        url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
+        icon: "linkedin",
+      },
+      {
+        platform: "GitHub",
+        url: "https://github.com/RazvanBordinc",
+        icon: "github",
+      },
+      {
+        platform: "Email",
+        url: "mailto:razvan.bordinc@yahoo.com",
+        icon: "mail",
+      },
+    ],
+  };
+};
+
+// Create fallback data for various formats
+const createFallbackData = (formatType) => {
+  switch (formatType) {
+    case "contact":
+      return createDefaultFormData();
+    default:
+      return null;
+  }
+};
 
 export default function FormatMessage({ message }) {
   const [processedMessage, setProcessedMessage] = useState(null);
   const [parseError, setParseError] = useState(null);
 
-  // Process the message when it changes
-  useEffect(() => {
-    if (message) {
-      processMessage(message);
-    }
-  }, [message]);
-
   // Wrap in useCallback to prevent infinite re-renders
   const processMessage = useCallback((originalMessage) => {
-    console.log("FormatMessage processing:", originalMessage);
+    debugLog("FormatMessage processing:", originalMessage);
     setParseError(null);
 
     // Initialize default processed message
@@ -26,6 +68,94 @@ export default function FormatMessage({ message }) {
     };
 
     try {
+      // Define extractFormatAndData function inside useCallback
+      const extractFormatAndData = (text) => {
+        if (typeof text !== "string")
+          return {
+            cleanedText: String(text || ""),
+            extractedData: null,
+            formatType: null,
+          };
+
+        let cleanedText = text;
+        let formatType = null;
+        let extractedData = null;
+
+        try {
+          // Extract format
+          const formatRegex = /\[format:(text|contact)\]/i;
+          const formatMatch = text.match(formatRegex);
+          if (formatMatch) {
+            formatType = formatMatch[1].toLowerCase();
+            cleanedText = cleanedText.replace(formatMatch[0], "");
+          }
+
+          // Remove [/format] tags
+          cleanedText = cleanedText.replace(/\[\/format\]/gi, "");
+
+          // Extract data with better error handling
+          const dataRegex = /\[data:([\s\S]*?)\]/;
+          const dataMatch = text.match(dataRegex);
+
+          if (dataMatch && dataMatch[1]) {
+            try {
+              let jsonStr = dataMatch[1].trim();
+
+              // Log the string for debugging
+              debugLog("Raw JSON data:", jsonStr);
+
+              // Fix the JSON with our global utility
+              jsonStr = fixTruncatedOrMalformedJson(jsonStr);
+
+              // Try parsing the cleaned JSON
+              try {
+                extractedData = JSON.parse(jsonStr);
+                debugLog("Successfully extracted JSON data");
+              } catch (parseError) {
+                console.error("JSON parsing error after cleaning:", parseError);
+
+                // Use default form data as fallback
+                if (formatType === "contact") {
+                  extractedData = createDefaultFormData();
+                  debugLog(
+                    "Created default contact form data after parse failure"
+                  );
+                }
+              }
+
+              cleanedText = cleanedText.replace(dataMatch[0], "");
+            } catch (error) {
+              console.error("Error handling JSON data:", error);
+
+              // Create fallback data based on format type
+              extractedData = createFallbackData(formatType);
+
+              // Remove the problematic data tag from the text
+              cleanedText = cleanedText.replace(dataMatch[0], "");
+              cleanedText +=
+                "\n\nNote: There was an issue with the data format. Using default template.";
+            }
+          } else if (formatType && formatType !== "text") {
+            // If a non-text format is specified but no data is provided, create fallback data
+            debugLog(`No data found for ${formatType} format, using fallback`);
+            extractedData = createFallbackData(formatType);
+          }
+
+          return {
+            cleanedText: cleanedText.trim(),
+            extractedData,
+            formatType,
+          };
+        } catch (error) {
+          console.error("Error in extractFormatAndData:", error);
+          return {
+            cleanedText: text,
+            extractedData: createFallbackData("text"),
+            formatType: "text",
+          };
+        }
+      };
+
       // Handle message as string (legacy format)
       if (typeof originalMessage === "string") {
         const { cleanedText, extractedData, formatType } =
@@ -38,7 +168,7 @@ export default function FormatMessage({ message }) {
 
       // Handle message as object (new format)
       if (typeof originalMessage === "object" && originalMessage !== null) {
-        console.log("Processing object message:", originalMessage);
+        debugLog("Processing object message:", originalMessage);
 
         // Handle case where content is the object containing text, format, etc.
         if (
@@ -102,224 +232,12 @@ export default function FormatMessage({ message }) {
       });
     }
   }, []);
-
-  // Extract format and data from text
-  const extractFormatAndData = (text) => {
-    if (typeof text !== "string")
-      return {
-        cleanedText: String(text || ""),
-        extractedData: null,
-        formatType: null,
-      };
-
-    let cleanedText = text;
-    let formatType = null;
-    let extractedData = null;
-
-    try {
-      // Extract format
-      const formatRegex = /\[format:(text|contact)\]/i;
-      const formatMatch = text.match(formatRegex);
-      if (formatMatch) {
-        formatType = formatMatch[1].toLowerCase();
-        cleanedText = cleanedText.replace(formatMatch[0], "");
-      }
-
-      // Remove [/format] tags
-      cleanedText = cleanedText.replace(/\[\/format\]/gi, "");
-
-      // Extract data with better error handling
-      const dataRegex = /\[data:([\s\S]*?)\]/;
-      const dataMatch = text.match(dataRegex);
-
-      if (dataMatch && dataMatch[1]) {
-        try {
-          let jsonStr = dataMatch[1].trim();
-
-          // Log the string for debugging
-          console.log("Raw JSON data:", jsonStr);
-
-          // IMPROVED: Use the enhanced JSON cleaning function
-          jsonStr = fixTruncatedOrMalformedJson(jsonStr);
-          console.log("Cleaned JSON data:", jsonStr);
-
-          // Try parsing the cleaned JSON
-          try {
-            extractedData = JSON.parse(jsonStr);
-            console.log("Successfully extracted JSON data:", extractedData);
-          } catch (parseError) {
-            console.error("JSON parsing error after cleaning:", parseError);
-
-            // One more attempt with a more aggressive cleanup
-            try {
-              // If it's a contact form, try to build a basic structure
-              if (
-                formatType === "contact" ||
-                jsonStr.includes("Contact Form") ||
-                jsonStr.includes("recipientName") ||
-                jsonStr.includes("socialLinks")
-              ) {
-                extractedData = createDefaultFormData();
-                console.log(
-                  "Created default contact form data after parse failure"
-                );
-              }
-            } catch (finalError) {
-              console.error("Final JSON parsing error:", finalError);
-              extractedData = createFallbackData(formatType);
-            }
-          }
-
-          cleanedText = cleanedText.replace(dataMatch[0], "");
-        } catch (error) {
-          console.error("Error handling JSON data:", error);
-
-          // Create fallback data based on format type
-          extractedData = createFallbackData(formatType);
-
-          // Remove the problematic data tag from the text
-          cleanedText = cleanedText.replace(dataMatch[0], "");
-          cleanedText +=
-            "\n\nNote: There was an issue with the data format. Using default template.";
-        }
-      } else if (formatType && formatType !== "text") {
-        // If a non-text format is specified but no data is provided, create fallback data
-        console.warn(`No data found for ${formatType} format, using fallback`);
-        extractedData = createFallbackData(formatType);
-      }
-
-      return {
-        cleanedText: cleanedText.trim(),
-        extractedData,
-        formatType,
-      };
-    } catch (error) {
-      console.error("Error in extractFormatAndData:", error);
-      return {
-        cleanedText: text,
-        extractedData: createFallbackData("text"),
-        formatType: "text",
-      };
+  // Process the message when it changes
+  useEffect(() => {
+    if (message) {
+      processMessage(message);
     }
-  };
-  const fixTruncatedOrMalformedJson = (jsonStr) => {
-    if (!jsonStr) return jsonStr;
-
-    // Store original for comparison
-    const original = jsonStr;
-    let cleaned = jsonStr;
-
-    // Remove any leading/trailing whitespace
-    cleaned = cleaned.trim();
-
-    // Count opening and closing braces/brackets
-    const openBraces = (cleaned.match(/{/g) || []).length;
-    const closeBraces = (cleaned.match(/}/g) || []).length;
-    const openBrackets = (cleaned.match(/\[/g) || []).length;
-    const closeBrackets = (cleaned.match(/\]/g) || []).length;
-
-    // Fix missing quotes around property names
-    cleaned = cleaned.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
-
-    // Fix single quotes to double quotes, preserving escaped quotes
-    cleaned = cleaned
-      .replace(/\\'/g, "\\TEMP_QUOTE") // Temporarily replace escaped single quotes
-      .replace(/'/g, '"') // Replace all single quotes with double quotes
-      .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
-
-    // Remove trailing commas in objects and arrays
-    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
-
-    // Remove any unescaped newlines inside strings
-    cleaned = cleaned.replace(/([^\\])"([^"]*)\n([^"]*)"/g, '$1"$2 $3"');
-
-    // Balance brackets if needed
-    if (openBraces > closeBraces) {
-      for (let i = 0; i < openBraces - closeBraces; i++) {
-        cleaned += "}";
-      }
-    }
-
-    if (openBrackets > closeBrackets) {
-      for (let i = 0; i < openBrackets - closeBrackets; i++) {
-        cleaned += "]";
-      }
-    }
-
-    // Log if changes were made
-    if (cleaned !== original) {
-      console.log("JSON fixed from:", original);
-      console.log("JSON fixed to:", cleaned);
-    }
-
-    return cleaned;
-  };
-  // Clean up a JSON string to fix common formatting errors
-  const cleanJsonString = (jsonStr) => {
-    if (!jsonStr) return jsonStr;
-
-    // Handle any extra characters at the end that could break JSON
-    let cleaned = jsonStr;
-
-    // Look for trailing "]}}" pattern and fix it if needed
-    if (cleaned.match(/\]\s*\}\s*\}+\s*$/)) {
-      cleaned = cleaned.replace(/\]\s*\}\s*\}+\s*$/, "]}");
-    }
-
-    // Replace JavaScript-style property names (without quotes) with JSON-style (with quotes)
-    cleaned = cleaned.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
-
-    // Replace single quotes with double quotes (handling escaped quotes)
-    cleaned = cleaned
-      .replace(/\\'/g, "\\TEMP_QUOTE") // Temporarily replace escaped single quotes
-      .replace(/'/g, '"') // Replace all single quotes with double quotes
-      .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
-
-    // Remove trailing commas in objects and arrays
-    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
-
-    // Remove any unescaped newlines inside strings
-    cleaned = cleaned.replace(/([^\\])"([^"]*)\n([^"]*)"/g, '$1"$2 $3"');
-
-    // Remove any control characters
-    cleaned = cleaned.replace(/[\x00-\x1F]/g, " ");
-
-    return cleaned;
-  };
-
-  // Create fallback data based on format type
-  const createFallbackData = (formatType) => {
-    switch (formatType) {
-      case "contact":
-        return {
-          title: "Contact Form",
-          recipientName: "Razvan Bordinc",
-          recipientPosition: "Software Engineer",
-          emailSubject: "Contact from Portfolio Website",
-          socialLinks: [
-            {
-              platform: "LinkedIn",
-              url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
-              icon: "linkedin",
-            },
-            {
-              platform: "GitHub",
-              url: "https://github.com/RazvanBordinc",
-              icon: "github",
-            },
-            {
-              platform: "Email",
-              url: "mailto:razvan.bordinc@yahoo.com",
-              icon: "mail",
-            },
-          ],
-        };
-
-      default:
-        return null;
-    }
-  };
-
+  }, [message, processMessage]);
   // If message is still being processed
   if (!processedMessage) {
     return <div className="animate-pulse">Processing message...</div>;
@@ -329,7 +247,7 @@ export default function FormatMessage({ message }) {
   const renderFormatComponent = () => {
     try {
       // For debugging, also check the format
-      console.log(`Rendering format component: ${processedMessage.format}`);
+      debugLog(`Rendering format component: ${processedMessage.format}`);
 
       switch (processedMessage.format) {
         case "contact":

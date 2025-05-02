@@ -2,17 +2,36 @@ import React, { useEffect, useState, useCallback } from "react";
 import ChatBubble from "./ChatBubble";
 import StreamingBubble from "./StreamingBubble"; // Component for streaming text
 import { enhanceMessage } from "../../lib/utils/urlDetector"; // Import the helper function
+// Debug logging utility - reduce console spam
+const DEBUG = false;
+const debugLog = (...args) => {
+  if (DEBUG) {
+    console.log(...args);
+  }
+};
+
+// Define helper functions outside the component to avoid scope issues
+const cleanJsonString = (jsonStr) => {
+  if (!jsonStr) return jsonStr;
+
+  // Replace JavaScript-style property names (without quotes) with JSON-style (with quotes)
+  let cleaned = jsonStr.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
+
+  // Replace single quotes with double quotes (handling escaped quotes)
+  cleaned = cleaned
+    .replace(/\\'/g, "\\TEMP_QUOTE") // Temporarily replace escaped single quotes
+    .replace(/'/g, '"') // Replace all single quotes with double quotes
+    .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
+
+  // Remove trailing commas in objects and arrays
+  cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
+
+  return cleaned;
+};
 
 export default function ChatMessage({ message }) {
   const [processedMessage, setProcessedMessage] = useState(null);
   const [parseError, setParseError] = useState(null);
-
-  // Process the message when it changes
-  useEffect(() => {
-    if (message) {
-      processMessage(message);
-    }
-  }, [message]);
 
   // Wrap in useCallback to prevent infinite re-renders
   const processMessage = useCallback((originalMessage) => {
@@ -20,7 +39,7 @@ export default function ChatMessage({ message }) {
     let processedMsg = { ...originalMessage };
 
     // Log for debugging (can be removed in production)
-    console.log("ChatMessage processing:", originalMessage);
+    debugLog("ChatMessage processing:", originalMessage);
 
     try {
       // Check if this is a streaming message
@@ -103,30 +122,32 @@ export default function ChatMessage({ message }) {
       setParseError(error.message);
 
       // Keep original message as fallback but make sure isStreaming is correct
-      processedMsg.isStreaming = processedMsg.isStreaming || false;
-      setProcessedMessage(processedMsg);
+      if (processedMsg) {
+        processedMsg.isStreaming = processedMsg.isStreaming || false;
+        setProcessedMessage(processedMsg);
+      } else {
+        // Create a minimal valid message if processedMsg is undefined
+        setProcessedMessage({
+          id: originalMessage.id || Date.now(),
+          content: {
+            text: "Error processing message",
+            format: "text",
+            data: null,
+          },
+          sender: originalMessage.sender || "ai",
+          isStreaming: false,
+          timestamp: originalMessage.timestamp || new Date().toISOString(),
+          isError: true,
+        });
+      }
     }
   }, []);
-
-  // Clean up JSON string for parsing
-  const cleanJsonString = (jsonStr) => {
-    if (!jsonStr) return jsonStr;
-
-    // Replace JavaScript-style property names (without quotes) with JSON-style (with quotes)
-    let cleaned = jsonStr.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
-
-    // Replace single quotes with double quotes (handling escaped quotes)
-    cleaned = cleaned
-      .replace(/\\'/g, "\\TEMP_QUOTE") // Temporarily replace escaped single quotes
-      .replace(/'/g, '"') // Replace all single quotes with double quotes
-      .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
-
-    // Remove trailing commas in objects and arrays
-    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
-
-    return cleaned;
-  };
-
+  // Process the message when it changes
+  useEffect(() => {
+    if (message) {
+      processMessage(message);
+    }
+  }, [message, processMessage]);
   // If message is still being processed
   if (!processedMessage) {
     return <div className="animate-pulse">Processing message...</div>;

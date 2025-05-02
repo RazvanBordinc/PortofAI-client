@@ -1,5 +1,10 @@
 "use client";
-
+import {
+  fixTruncatedOrMalformedJson,
+  cleanResponseText,
+  processUrlsAndEmails,
+  createDefaultContactData,
+} from "@/lib/utils/textCleaners";
 import React, { useState, useRef, useEffect } from "react";
 import {
   Send,
@@ -21,7 +26,7 @@ import ChatSuggestion from "./ChatSuggestion";
 import LogoAnimationSvg from "../shared/LogoAnimationSvg";
 import Modal from "../shared/Modal";
 import RemainingRequests from "./RemainingRequests";
-
+const DEBUG = false;
 export default function ChatInterface() {
   // Message and UI state
   const [messages, setMessages] = useState([]);
@@ -86,6 +91,11 @@ export default function ChatInterface() {
     };
   }, []);
 
+  const debugLog = (...args) => {
+    if (DEBUG) {
+      console.log(...args);
+    }
+  };
   // Fetch remaining API requests
   const fetchRemainingRequests = async () => {
     try {
@@ -139,11 +149,11 @@ export default function ChatInterface() {
       isContactForm &&
       (openBraces !== closeBraces || openBrackets !== closeBrackets)
     ) {
-      console.log("Detected unbalanced brackets in contact form JSON");
+      debugLog("Detected unbalanced brackets in contact form JSON");
 
       // Special case: If we see the specific truncation pattern (ends with github entry)
       if (jsonStr.includes("GitHub") && !jsonStr.endsWith("]}")) {
-        console.log("Detected truncated JSON after GitHub entry");
+        debugLog("Detected truncated JSON after GitHub entry");
 
         // Complete the JSON with missing closing brackets
         let completed = jsonStr;
@@ -163,7 +173,7 @@ export default function ChatInterface() {
           completed += "}";
         }
 
-        console.log("Completed JSON:", completed);
+        debugLog("Completed JSON:", completed);
         return completed;
       }
 
@@ -180,7 +190,7 @@ export default function ChatInterface() {
         completed += "}";
       }
 
-      console.log("Generically completed JSON:", completed);
+      debugLog("Generically completed JSON:", completed);
       return completed;
     }
 
@@ -212,61 +222,6 @@ export default function ChatInterface() {
     return cleaned;
   };
 
-  // Create default contact form data
-  const createDefaultContactData = () => {
-    return {
-      title: "Contact Form",
-      recipientName: "Razvan Bordinc",
-      recipientPosition: "Software Engineer",
-      emailSubject: "Contact from Portfolio Website",
-      socialLinks: [
-        {
-          platform: "LinkedIn",
-          url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
-          icon: "linkedin",
-        },
-        {
-          platform: "GitHub",
-          url: "https://github.com/RazvanBordinc",
-          icon: "github",
-        },
-      ],
-    };
-  };
-  const cleanResponseText = (text) => {
-    if (!text) return text;
-
-    // Remove trailing JSON artifacts that appear frequently
-    let cleaned = text.replace(/[\}\]:\}\]]+$/, "");
-
-    // Fix malformed markdown links with extra closing parentheses
-    cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)\)+/g, "[$1]($2)");
-
-    // Fix links with extra brackets or braces
-    cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)[\)\}\]]+/g, "[$1]($2)");
-
-    // Clean up any Markdown link issues with encoded characters
-    cleaned = cleaned.replace(
-      /\[([^\]]+)\]\(([^)]+)%([^)]+)\)/g,
-      (match, text, url1, url2) => {
-        // Only fix if it's not already a properly encoded URL
-        if (
-          !url1.includes("%2") &&
-          !url1.includes("%3") &&
-          !url1.includes("%4")
-        ) {
-          // This is likely a malformed URL encoding
-          return `[${text}](${url1}%${url2})`;
-        }
-        return match; // Leave properly encoded URLs alone
-      }
-    );
-
-    // Remove any stray JSON characters
-    cleaned = cleaned.replace(/[\{\}\[\]]+$/g, "");
-
-    return cleaned;
-  };
   // Enhanced processCompletedResponse function
   const processCompletedResponse = (fullText) => {
     // Apply the text cleaning first to fix any formatting issues
@@ -297,6 +252,7 @@ export default function ChatInterface() {
 
           // For contact form, use default data
           if (format === "contact") {
+            console.log("here", 33);
             formatData = createDefaultContactData();
           }
         }
@@ -304,6 +260,7 @@ export default function ChatInterface() {
         console.error("Error processing data tag:", error);
       }
     } else if (format === "contact") {
+      console.log("here", 44);
       // Default contact data if format is contact but no data is found
       formatData = createDefaultContactData();
     }
@@ -335,11 +292,11 @@ export default function ChatInterface() {
 
   // FIXED: Handle suggestion selection - properly sends the message immediately
   const handleSuggestionSelect = (text) => {
-    console.log("Suggestion selected:", text);
+    debugLog("Suggestion selected:", text);
 
     // Don't proceed if already busy
     if (isAiTyping || isLoading || remaining <= 0) {
-      console.log("Cannot process suggestion - busy or rate limited");
+      debugLog("Cannot process suggestion - busy or rate limited");
       return;
     }
 
@@ -351,7 +308,7 @@ export default function ChatInterface() {
       timestamp: new Date().toISOString(),
     };
 
-    console.log("Created user message:", userMessage);
+    debugLog("Created user message:", userMessage);
 
     // Add user message to chat
     setMessages((prev) => [...prev, userMessage]);
@@ -379,214 +336,12 @@ export default function ChatInterface() {
     // Add the streaming message to the chat
     setMessages((prev) => [...prev, streamingMessage]);
 
-    console.log("Added streaming message placeholder. Calling API...");
+    debugLog("Added streaming message placeholder. Calling API...");
 
     // Direct call to the API handling function
     sendMessageToApi(userMessage, streamingMessageId);
   };
 
-  const processUrlsAndEmails = (text) => {
-    if (typeof text !== "string") return text;
-
-    // Process plain URLs to markdown links
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    text = text.replace(urlRegex, (url) => {
-      // Skip if it already appears to be in a markdown link [text](url)
-      const prevText = text.substring(
-        Math.max(0, text.indexOf(url) - 20),
-        text.indexOf(url)
-      );
-      if (
-        prevText.includes("[") &&
-        text.substring(text.indexOf(url) + url.length).includes(")")
-      ) {
-        return url;
-      }
-
-      // Check if URL has parameters or path, if no then trim the trailing slash
-      let cleanUrl = url;
-      if (url.endsWith("/") && !url.slice(0, -1).includes("/")) {
-        cleanUrl = url.slice(0, -1);
-      }
-
-      // Create a markdown link
-      return `[${cleanUrl}](${url})`;
-    });
-
-    // Process plain emails to markdown style
-    const emailRegex = /\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g;
-    text = text.replace(emailRegex, (email) => {
-      // Check if this email is already part of a markdown link
-      const prevChar = text.charAt(text.indexOf(email) - 1);
-      const nextChar = text.charAt(text.indexOf(email) + email.length);
-
-      // Skip if email appears to be part of a link already
-      if (
-        prevChar === "(" ||
-        nextChar === ")" ||
-        prevChar === "[" ||
-        nextChar === "]"
-      ) {
-        return email;
-      }
-
-      // Handle Yahoo email addresses with special styling
-      if (email.includes("@yahoo.com")) {
-        return `[${email}](mailto:${email})`;
-      }
-
-      return `[${email}](mailto:${email})`;
-    });
-
-    return text;
-  };
-  // Improved fixTruncatedOrMalformedJson function
-  const fixTruncatedOrMalformedJson = (jsonStr) => {
-    if (!jsonStr) return jsonStr;
-
-    // Store original for comparison
-    const original = jsonStr;
-    let cleaned = jsonStr;
-
-    // Remove any leading/trailing whitespace
-    cleaned = cleaned.trim();
-
-    // Count opening and closing braces/brackets to check for balance
-    const openBraces = (cleaned.match(/{/g) || []).length;
-    const closeBraces = (cleaned.match(/}/g) || []).length;
-    const openBrackets = (cleaned.match(/\[/g) || []).length;
-    const closeBrackets = (cleaned.match(/\]/g) || []).length;
-
-    // Fix missing quotes around property names
-    cleaned = cleaned.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
-
-    // Fix single quotes to double quotes, preserving escaped quotes
-    cleaned = cleaned
-      .replace(/\\'/g, "\\TEMP_QUOTE") // Temporarily replace escaped single quotes
-      .replace(/'/g, '"') // Replace all single quotes with double quotes
-      .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
-
-    // Remove trailing commas in objects and arrays
-    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
-
-    // Remove any unescaped newlines inside strings
-    cleaned = cleaned.replace(/([^\\])"([^"]*)\n([^"]*)"/g, '$1"$2 $3"');
-
-    // Balance brackets if needed
-    if (openBraces > closeBraces) {
-      for (let i = 0; i < openBraces - closeBraces; i++) {
-        cleaned += "}";
-      }
-    }
-
-    if (openBrackets > closeBrackets) {
-      for (let i = 0; i < openBrackets - closeBrackets; i++) {
-        cleaned += "]";
-      }
-    }
-
-    // If we're looking at contact form data, make sure the JSON is valid
-    if (cleaned.includes("socialLinks") && cleaned.includes("platform")) {
-      try {
-        // Test parsing
-        JSON.parse(cleaned);
-      } catch (error) {
-        console.error("Contact form JSON still invalid after cleaning:", error);
-
-        // Aggressive fix for common contact form issues
-        if (cleaned.includes("socialLinks") && !cleaned.endsWith("}")) {
-          // Try to fix missing closing brackets
-          if (cleaned.endsWith("]")) {
-            cleaned += "}";
-          } else if (!cleaned.endsWith("]}")) {
-            cleaned += "]}";
-          }
-        }
-
-        try {
-          // Verify the fix worked
-          JSON.parse(cleaned);
-          console.log(
-            "Successfully fixed contact form JSON with aggressive cleanup"
-          );
-        } catch (finalError) {
-          console.error(
-            "Could not fix contact form JSON even with aggressive cleanup"
-          );
-          // Return the cleaned version anyway - createDefaultContactData will be used as fallback
-        }
-      }
-    }
-
-    // Log if changes were made
-    if (cleaned !== original) {
-      console.log(
-        "JSON fixed from:",
-        original.substring(0, 100) + (original.length > 100 ? "..." : "")
-      );
-      console.log(
-        "JSON fixed to:",
-        cleaned.substring(0, 100) + (cleaned.length > 100 ? "..." : "")
-      );
-    }
-
-    return cleaned;
-  };
-
-  // Update the SSE event handling code in ChatInterface.js
-
-  // Inside the "done" event handling:
-  if (eventName === "done") {
-    console.log("Received done event");
-    try {
-      const completionData = JSON.parse(dataContent);
-
-      if (completionData.done) {
-        // Clean the full text before processing
-        let cleanedFullText = cleanResponseText(completionData.fullText || "");
-
-        // Process the cleaned response
-        const processedContent = processCompletedResponse(cleanedFullText);
-
-        // Update the message with the processed content
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === streamingMessageId
-              ? {
-                  ...msg,
-                  content: processedContent,
-                  isStreaming: false,
-                  originalText: completionData.fullText,
-                }
-              : msg
-          )
-        );
-
-        // Clear loading states
-        setIsAiTyping(false);
-        setIsLoading(false);
-      }
-    } catch (error) {
-      console.error("Error parsing completion data:", error);
-      setIsAiTyping(false);
-      setIsLoading(false);
-
-      // Keep any accumulated text but clean it first
-      const cleanedText = cleanResponseText(accumulatedText);
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === streamingMessageId
-            ? {
-                ...msg,
-                isStreaming: false,
-                content: cleanedText || msg.content,
-                parseError: error.message,
-              }
-            : msg
-        )
-      );
-    }
-  }
   // FIXED: Toggle style menu without sending message
   const toggleStyleMenu = () => {
     setIsStyleMenuOpen(!isStyleMenuOpen);
@@ -603,21 +358,28 @@ export default function ChatInterface() {
     setIsLoading(false);
   };
 
-  // Extract API call logic to a separate function
+  // Updated sendMessageToApi function with proper variable initialization
   const sendMessageToApi = async (userMessage, streamingMessageId) => {
-    console.log("Sending message to API:", userMessage.content);
+    debugLog("Sending message to API:", userMessage.content);
+
+    // Initialize variables at the top - important!
+    let accumulatedText = "";
+    let done = false;
+    let reader = null;
+    let response = null;
+    let timeoutId = null;
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
 
       // Abort controller for the fetch request with timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      console.log(`Sending message to API with style: ${selectedStyle}`);
+      debugLog(`Sending message to API with style: ${selectedStyle}`);
 
       // Start the streaming request
-      const response = await fetch(`${apiUrl}/api/chat/stream`, {
+      response = await fetch(`${apiUrl}/api/chat/stream`, {
         method: "POST",
         signal: controller.signal,
         headers: {
@@ -643,10 +405,8 @@ export default function ChatInterface() {
       }
 
       // Get the reader from the response body
-      const reader = response.body.getReader();
+      reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let accumulatedText = "";
-      let done = false;
 
       // Process the stream chunks
       while (!done) {
@@ -654,7 +414,7 @@ export default function ChatInterface() {
         done = readerDone;
 
         if (done) {
-          console.log("Stream completed");
+          debugLog("Stream completed");
           setIsAiTyping(false);
           setIsLoading(false);
           break;
@@ -662,7 +422,7 @@ export default function ChatInterface() {
 
         // Decode this chunk
         const chunk = decoder.decode(value, { stream: true });
-        console.log("Received chunk:", chunk.length);
+        debugLog("Received chunk:", chunk.length);
 
         // Process SSE format
         const lines = chunk.split("\n\n");
@@ -673,7 +433,7 @@ export default function ChatInterface() {
           try {
             // Check if it's a heartbeat comment
             if (line.startsWith(":")) {
-              console.log("Heartbeat received");
+              debugLog("Heartbeat received");
               continue;
             }
 
@@ -689,7 +449,7 @@ export default function ChatInterface() {
 
             // Handle different event types
             if (eventName === "done") {
-              console.log("Received done event");
+              debugLog("Received done event");
               try {
                 const completionData = JSON.parse(dataContent);
 
@@ -767,7 +527,7 @@ export default function ChatInterface() {
         }
       }
 
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
       setIsAiTyping(false);
       setIsLoading(false);
 
@@ -779,6 +539,8 @@ export default function ChatInterface() {
       // Clear loading states
       setIsAiTyping(false);
       setIsLoading(false);
+
+      if (timeoutId) clearTimeout(timeoutId);
 
       // Replace the streaming message with an error message
       setMessages((prev) =>
@@ -854,9 +616,6 @@ export default function ChatInterface() {
     }
     return "Type your message...";
   };
-
-  // Show suggestions only when there are no messages or very few messages and AI is not typing
-  const shouldShowSuggestions = messages.length < 3 && !isAiTyping;
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 relative">

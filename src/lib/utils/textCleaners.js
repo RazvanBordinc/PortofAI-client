@@ -37,74 +37,81 @@ export const cleanResponseText = (text) => {
   return cleaned;
 };
 
+// Create default contact form data function at the module level
+export const createDefaultContactData = () => {
+  return {
+    title: "Contact Form",
+    recipientName: "Razvan Bordinc",
+    recipientPosition: "Software Engineer",
+    emailSubject: "Contact from Portfolio Website",
+    socialLinks: [
+      {
+        platform: "LinkedIn",
+        url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
+        icon: "linkedin",
+      },
+      {
+        platform: "GitHub",
+        url: "https://github.com/RazvanBordinc",
+        icon: "github",
+      },
+    ],
+  };
+};
+
 /**
  * Fixes truncated or malformed JSON strings
  * @param {string} jsonStr - JSON string to fix
  * @returns {string} Fixed JSON string
  */
 export const fixTruncatedOrMalformedJson = (jsonStr) => {
-  if (!jsonStr) return jsonStr;
+  if (!jsonStr || typeof jsonStr !== "string") return jsonStr;
 
-  // Store original for comparison
-  const original = jsonStr;
-  let cleaned = jsonStr;
+  try {
+    let cleaned = jsonStr.trim();
 
-  // Remove any leading/trailing whitespace
-  cleaned = cleaned.trim();
-
-  // Count opening and closing braces/brackets
-  const openBraces = (cleaned.match(/{/g) || []).length;
-  const closeBraces = (cleaned.match(/}/g) || []).length;
-  const openBrackets = (cleaned.match(/\[/g) || []).length;
-  const closeBrackets = (cleaned.match(/\]/g) || []).length;
-
-  // Fix missing quotes around property names
-  cleaned = cleaned.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
-
-  // Fix single quotes to double quotes
-  cleaned = cleaned
-    .replace(/\\'/g, "\\TEMP_QUOTE")
-    .replace(/'/g, '"')
-    .replace(/\\TEMP_QUOTE/g, "\\'");
-
-  // Remove trailing commas
-  cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
-
-  // Remove any unescaped newlines inside strings
-  cleaned = cleaned.replace(/([^\\])"([^"]*)\n([^"]*)"/g, '$1"$2 $3"');
-
-  // Balance brackets if needed
-  if (openBraces > closeBraces) {
-    for (let i = 0; i < openBraces - closeBraces; i++) {
-      cleaned += "}";
-    }
-  }
-
-  if (openBrackets > closeBrackets) {
-    for (let i = 0; i < openBrackets - closeBrackets; i++) {
-      cleaned += "]";
-    }
-  }
-
-  // Special handling for contact form data
-  if (cleaned.includes("socialLinks") && cleaned.includes("platform")) {
+    // Early return if already valid
     try {
       JSON.parse(cleaned);
+      return cleaned;
+    } catch {}
+
+    // Step-by-step cleanup
+    cleaned = cleaned
+      .replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":') // Add missing quotes
+      .replace(/\\'/g, "\\TEMP_QUOTE") // Preserve escaped single quotes
+      .replace(/'/g, '"') // Replace unescaped single quotes
+      .replace(/\\TEMP_QUOTE/g, "\\'") // Restore escaped quotes
+      .replace(/,\s*([}\]])/g, "$1") // Remove trailing commas
+      .replace(/}(\s*{)/g, "},$1"); // Insert missing commas between objects in arrays
+
+    // Balance braces and brackets
+    const balanceSymbols = (symbol, opposite) => {
+      const open = (cleaned.match(new RegExp(`\\${symbol}`, "g")) || []).length;
+      const close = (cleaned.match(new RegExp(`\\${opposite}`, "g")) || [])
+        .length;
+      return symbol.repeat(open - close);
+    };
+
+    cleaned += balanceSymbols("{", "}");
+    cleaned += balanceSymbols("[", "]");
+    cleaned.replace(/\}\]\[\/format:?\s*/g, "");
+    // Final parse attempt
+    try {
+      JSON.parse(cleaned);
+      return cleaned;
     } catch (error) {
-      console.error("Contact form JSON still invalid after cleaning:", error);
-
-      // Aggressive fix for common contact form issues
-      if (cleaned.includes("socialLinks") && !cleaned.endsWith("}")) {
-        if (cleaned.endsWith("]")) {
-          cleaned += "}";
-        } else if (!cleaned.endsWith("]}")) {
-          cleaned += "]}";
-        }
+      console.error("JSON still invalid after cleaning:", error);
+      if (cleaned.includes("socialLinks") || cleaned.includes("Contact Form")) {
+        return JSON.stringify(createDefaultContactData(), null, 2);
       }
+      return cleaned;
     }
+  } catch (error) {
+    console.log("here", 222);
+    console.error("Fatal error during JSON cleanup:", error);
+    return JSON.stringify(createDefaultContactData(), null, 2);
   }
-
-  return cleaned;
 };
 
 /**

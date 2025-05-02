@@ -46,6 +46,19 @@ export const processUrlsAndEmails = (text) => {
   // Process plain URLs to markdown links
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   text = text.replace(urlRegex, (url) => {
+    // Skip if URL is already part of a markdown link
+    const prevText = text.substring(
+      Math.max(0, text.indexOf(url) - 20),
+      text.indexOf(url)
+    );
+
+    if (
+      prevText.includes("[") &&
+      text.substring(text.indexOf(url) + url.length).includes(")")
+    ) {
+      return url;
+    }
+
     // Try to create a user-friendly display name for the URL
     let displayUrl = url;
     try {
@@ -97,32 +110,38 @@ export const processUrlsAndEmails = (text) => {
 export const enhanceMessage = (message) => {
   if (!message) return message;
 
-  // Create a deep copy to avoid mutating the original
-  const enhancedMessage = JSON.parse(JSON.stringify(message));
+  try {
+    // Create a deep copy to avoid mutating the original
+    const enhancedMessage = JSON.parse(JSON.stringify(message));
 
-  // Process message content
-  if (typeof enhancedMessage.content === "string") {
-    enhancedMessage.content = processUrlsAndEmails(enhancedMessage.content);
-  } else if (
-    enhancedMessage.content &&
-    typeof enhancedMessage.content.text === "string"
-  ) {
-    enhancedMessage.content.text = processUrlsAndEmails(
-      enhancedMessage.content.text
-    );
+    // Process message content
+    if (typeof enhancedMessage.content === "string") {
+      enhancedMessage.content = processUrlsAndEmails(enhancedMessage.content);
+    } else if (
+      enhancedMessage.content &&
+      typeof enhancedMessage.content.text === "string"
+    ) {
+      enhancedMessage.content.text = processUrlsAndEmails(
+        enhancedMessage.content.text
+      );
+    }
+
+    // Add a flag indicating if the message has rich content
+    if (typeof enhancedMessage.content === "string") {
+      enhancedMessage.hasRichContent = hasRichContent(enhancedMessage.content);
+    } else if (
+      enhancedMessage.content &&
+      typeof enhancedMessage.content.text === "string"
+    ) {
+      enhancedMessage.hasRichContent = hasRichContent(
+        enhancedMessage.content.text
+      );
+    }
+
+    return enhancedMessage;
+  } catch (error) {
+    console.error("Error enhancing message:", error);
+    // Return the original message if enhancement fails
+    return message;
   }
-
-  // Add a flag indicating if the message has rich content
-  if (typeof enhancedMessage.content === "string") {
-    enhancedMessage.hasRichContent = hasRichContent(enhancedMessage.content);
-  } else if (
-    enhancedMessage.content &&
-    typeof enhancedMessage.content.text === "string"
-  ) {
-    enhancedMessage.hasRichContent = hasRichContent(
-      enhancedMessage.content.text
-    );
-  }
-
-  return enhancedMessage;
 };

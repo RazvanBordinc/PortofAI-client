@@ -1,5 +1,4 @@
 "use client";
-import cleanResponseText from "@/utils/cleanResponseText";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import LogoSvg from "../shared/LogoSvg";
@@ -11,6 +10,41 @@ export default function StreamingBubble({ message }) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [isStreaming, setIsStreaming] = useState(true);
   const [hasRichContent, setHasRichContent] = useState(false);
+
+  // Helper function to clean response text
+  const cleanResponseText = (text) => {
+    if (!text) return text;
+
+    // Remove trailing JSON artifacts that appear frequently
+    let cleaned = text.replace(/[\}\]:\}\]]+$/, "");
+
+    // Fix malformed markdown links with extra closing parentheses
+    cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)\)+/g, "[$1]($2)");
+
+    // Fix links with extra brackets or braces
+    cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)[\)\}\]]+/g, "[$1]($2)");
+
+    // Fix any malformed URL encoding in links
+    cleaned = cleaned.replace(
+      /\[([^\]]+)\]\(([^)]+)%([^)]+)\)/g,
+      (match, text, url1, url2) => {
+        // Only fix if it's not already a properly encoded URL
+        if (
+          !url1.includes("%2") &&
+          !url1.includes("%3") &&
+          !url1.includes("%4")
+        ) {
+          return `[${text}](${url1}%${url2})`;
+        }
+        return match; // Leave properly encoded URLs alone
+      }
+    );
+
+    // Remove any stray JSON characters
+    cleaned = cleaned.replace(/[\{\}\[\]]+$/g, "");
+
+    return cleaned;
+  };
 
   // Set up the blinking cursor effect - only when streaming
   useEffect(() => {
