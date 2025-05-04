@@ -26,7 +26,11 @@ import ChatSuggestion from "./ChatSuggestion";
 import LogoAnimationSvg from "../shared/LogoAnimationSvg";
 import Modal from "../shared/Modal";
 import RemainingRequests from "./RemainingRequests";
+import ChatHistorySidebar from "../shared/ChatHistorySidebar";
+import useConversationHistory from "@/lib/utils/hooks/useConversationHistory";
+
 const DEBUG = false;
+
 export default function ChatInterface() {
   // Message and UI state
   const [messages, setMessages] = useState([]);
@@ -40,6 +44,17 @@ export default function ChatInterface() {
   const [selectedStyle, setSelectedStyle] = useState("NORMAL");
   const [remaining, setRemaining] = useState(15);
   const [currentUserMessage, setCurrentUserMessage] = useState(null);
+  const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState(false);
+
+  // Conversation history hook
+  const {
+    history,
+    isLoading: isHistoryLoading,
+    error: historyError,
+    fetchHistory,
+    clearHistory,
+    updateCache,
+  } = useConversationHistory();
 
   // Refs
   const messageEndRef = useRef(null);
@@ -69,6 +84,14 @@ export default function ChatInterface() {
     inputRef.current?.focus();
   }, []);
 
+  // Load conversation history when component mounts
+  useEffect(() => {
+    // If history is loaded and not empty, set as messages
+    if (history && history.length > 0 && messages.length === 0) {
+      setMessages(history);
+    }
+  }, [history]);
+
   // Fetch remaining requests on component mount
   useEffect(() => {
     fetchRemainingRequests();
@@ -96,6 +119,7 @@ export default function ChatInterface() {
       console.log(...args);
     }
   };
+
   // Fetch remaining API requests
   const fetchRemainingRequests = async () => {
     try {
@@ -290,6 +314,19 @@ export default function ChatInterface() {
     setIsAiTyping(false);
   };
 
+  // Handle history button click
+  const handleHistoryClick = () => {
+    setIsHistorySidebarOpen(true);
+  };
+
+  // Handle clearing history
+  const handleClearHistory = async () => {
+    if (window.confirm("Are you sure you want to clear your chat history?")) {
+      await clearHistory();
+      setMessages([]);
+    }
+  };
+
   // FIXED: Handle suggestion selection - properly sends the message immediately
   const handleSuggestionSelect = (text) => {
     debugLog("Suggestion selected:", text);
@@ -311,7 +348,10 @@ export default function ChatInterface() {
     debugLog("Created user message:", userMessage);
 
     // Add user message to chat
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    updateCache(updatedMessages);
+
     setCurrentUserMessage(userMessage);
     setLastUserMessage(userMessage);
 
@@ -464,8 +504,8 @@ export default function ChatInterface() {
                     processCompletedResponse(cleanedFullText);
 
                   // Update the message with the processed content
-                  setMessages((prev) =>
-                    prev.map((msg) =>
+                  setMessages((prev) => {
+                    const updated = prev.map((msg) =>
                       msg.id === streamingMessageId
                         ? {
                             ...msg,
@@ -474,8 +514,13 @@ export default function ChatInterface() {
                             originalText: completionData.fullText,
                           }
                         : msg
-                    )
-                  );
+                    );
+
+                    // Update the cache with the new AI response
+                    updateCache(updated);
+
+                    return updated;
+                  });
 
                   // Clear loading states
                   setIsAiTyping(false);
@@ -487,8 +532,8 @@ export default function ChatInterface() {
                 setIsLoading(false);
 
                 // Keep any accumulated text but clean it
-                setMessages((prev) =>
-                  prev.map((msg) =>
+                setMessages((prev) => {
+                  const updated = prev.map((msg) =>
                     msg.id === streamingMessageId
                       ? {
                           ...msg,
@@ -497,8 +542,11 @@ export default function ChatInterface() {
                             cleanResponseText(accumulatedText) || msg.content,
                         }
                       : msg
-                  )
-                );
+                  );
+
+                  updateCache(updated);
+                  return updated;
+                });
               }
             } else if (eventName === "message") {
               // Regular message event - unescape special characters
@@ -543,8 +591,8 @@ export default function ChatInterface() {
       if (timeoutId) clearTimeout(timeoutId);
 
       // Replace the streaming message with an error message
-      setMessages((prev) =>
-        prev.map((msg) =>
+      setMessages((prev) => {
+        const updated = prev.map((msg) =>
           msg.id === streamingMessageId
             ? {
                 id: streamingMessageId,
@@ -563,8 +611,11 @@ export default function ChatInterface() {
                 timestamp: new Date().toISOString(),
               }
             : msg
-        )
-      );
+        );
+
+        updateCache(updated);
+        return updated;
+      });
     }
   };
 
@@ -581,7 +632,11 @@ export default function ChatInterface() {
       timestamp: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    // Update messages and then cache
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    updateCache(updatedMessages);
+
     setCurrentUserMessage(userMessage);
     setLastUserMessage(userMessage);
     setNewMessage("");
@@ -620,7 +675,7 @@ export default function ChatInterface() {
   return (
     <div className="h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 relative">
       {/* Header */}
-      <ChatHeader />
+      <ChatHeader onHistoryClick={handleHistoryClick} />
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-4 mt-16">
@@ -675,6 +730,17 @@ export default function ChatInterface() {
           free tier limits.
         </p>
       </Modal>
+
+      {/* Chat History Sidebar */}
+      <ChatHistorySidebar
+        isOpen={isHistorySidebarOpen}
+        onClose={() => setIsHistorySidebarOpen(false)}
+        history={history}
+        onClearHistory={handleClearHistory}
+        onRefreshHistory={() => fetchHistory(true)}
+        isLoading={isHistoryLoading}
+        error={historyError}
+      />
 
       {/* Message Input */}
       <div className="p-4">

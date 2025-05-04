@@ -1,10 +1,12 @@
+// Update src/components/screen/ChatHeader.js to add a history button
+
 "use client";
 
 import React from "react";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, History } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function ChatHeader() {
+export default function ChatHeader({ onHistoryClick }) {
   return (
     <motion.div
       initial={{ y: -20, opacity: 0 }}
@@ -21,6 +23,15 @@ export default function ChatHeader() {
             PortofAI Chat
           </h1>
         </div>
+
+        {/* History button */}
+        <button
+          onClick={onHistoryClick}
+          className="flex items-center justify-center h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800/50 transition-colors cursor-pointer"
+          title="View Chat History"
+        >
+          <History size={16} />
+        </button>
       </div>
     </motion.div>
   );

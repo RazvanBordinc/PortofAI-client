@@ -101,7 +101,6 @@ export const fixTruncatedOrMalformedJson = (jsonStr) => {
       JSON.parse(cleaned);
       return cleaned;
     } catch (error) {
-      console.error("JSON still invalid after cleaning:", error);
       if (cleaned.includes("socialLinks") || cleaned.includes("Contact Form")) {
         return JSON.stringify(createDefaultContactData(), null, 2);
       }
@@ -109,7 +108,7 @@ export const fixTruncatedOrMalformedJson = (jsonStr) => {
     }
   } catch (error) {
     console.log("here", 222);
-    console.error("Fatal error during JSON cleanup:", error);
+
     return JSON.stringify(createDefaultContactData(), null, 2);
   }
 };
@@ -167,4 +166,67 @@ export const processUrlsAndEmails = (text) => {
   });
 
   return text;
+};
+/**
+ * Processes a complete AI response to extract format and data
+ * @param {string} fullText - The complete AI response text
+ * @returns {object} - An object with text, format, and data properties
+ */
+export const processCompletedResponse = (fullText) => {
+  // Apply the text cleaning first to fix any formatting issues
+  const cleanedText = cleanResponseText(fullText);
+
+  // Check for format tags in the text
+  let format = "text"; // Default format
+  const formatMatch = cleanedText.match(/\[format:(text|contact)\]/i);
+  if (formatMatch) {
+    format = formatMatch[1].toLowerCase();
+  }
+
+  // Extract data if present
+  let formatData = null;
+  const dataMatch = cleanedText.match(/\[data:([\s\S]*?)\]/s);
+
+  if (dataMatch && dataMatch[1]) {
+    try {
+      // Clean and parse the JSON data
+      let jsonString = dataMatch[1].trim();
+      jsonString = fixTruncatedOrMalformedJson(jsonString);
+
+      try {
+        formatData = JSON.parse(jsonString);
+      } catch (error) {
+        console.error("Error parsing JSON data:", error);
+        formatData = { error: `Could not parse JSON data: ${error.message}` };
+
+        // For contact form, use default data
+        if (format === "contact") {
+          formatData = createDefaultContactData();
+        }
+      }
+    } catch (error) {
+      console.error("Error processing data tag:", error);
+    }
+  } else if (format === "contact") {
+    // Default contact data if format is contact but no data is found
+    formatData = createDefaultContactData();
+  }
+
+  // Clean the response text
+  let finalText = cleanedText
+    .replace(/\[format:(text|contact)\]/gi, "")
+    .replace(/\[\/format\]/gi, "");
+
+  if (dataMatch) {
+    finalText = finalText.replace(/\[data:[\s\S]*?\]/s, "");
+  }
+
+  // Process URLs and email addresses in the text
+  finalText = processUrlsAndEmails(finalText);
+
+  return {
+    text: finalText.trim(),
+    format,
+    data: formatData,
+  };
 };
