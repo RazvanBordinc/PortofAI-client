@@ -164,8 +164,37 @@ const processText = (text, isAnimated) => {
           let linkText = closestMatch.match[1].trim();
           let linkUrl = closestMatch.match[2].trim();
 
-          // Remove any trailing parentheses or brackets from the URL
-          linkUrl = linkUrl.replace(/[\)\}\]]+$/, "");
+          // Fix common URL issues
+          linkUrl = linkUrl.replace(/[\)\}\]]+$/, ""); // Remove trailing brackets
+          linkUrl = linkUrl.replace(
+            /^(github\.com|linkedin\.com)/i,
+            "https://$1"
+          ); // Add protocol if missing
+
+          // Fix GitHub URL completion
+          if (linkUrl.includes("github.com/RazvanBordinc/cyber-portfolio")) {
+            linkUrl = "https://github.com/RazvanBordinc/cyber-portfolio";
+          }
+
+          // Handle truncated URLs
+          if (linkText.includes("...")) {
+            if (linkText.includes("github.com/RazvanBordinc/cyber")) {
+              linkText = "github.com/RazvanBordinc/cyber-portfolio";
+              linkUrl = "https://github.com/RazvanBordinc/cyber-portfolio";
+            }
+            if (linkText.includes("linkedin.com/in/valentin-r")) {
+              linkText = "LinkedIn Profile";
+              linkUrl =
+                "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/";
+            }
+          }
+
+          // Fix malformed LinkedIn links specifically
+          if (linkText.includes("linkedin.com")) {
+            linkText = "LinkedIn Profile";
+            linkUrl =
+              "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/";
+          }
 
           components.push(
             <LinkText

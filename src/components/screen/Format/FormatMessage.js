@@ -34,7 +34,7 @@ const createDefaultFormData = () => {
       },
       {
         platform: "Email",
-        url: "mailto:razvan.bordinc@yahoo.com",
+        url: "razvan.bordinc@yahoo.com",
         icon: "mail",
       },
     ],

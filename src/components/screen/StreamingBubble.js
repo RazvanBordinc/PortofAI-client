@@ -11,37 +11,29 @@ export default function StreamingBubble({ message }) {
   const [isStreaming, setIsStreaming] = useState(true);
   const [hasRichContent, setHasRichContent] = useState(false);
 
-  // Helper function to clean response text
+  // Helper function to clean response text - SIMPLIFIED
   const cleanResponseText = (text) => {
     if (!text) return text;
 
-    // Remove trailing JSON artifacts that appear frequently
-    let cleaned = text.replace(/[\}\]:\}\]]+$/, "");
+    let cleaned = text;
 
-    // Fix malformed markdown links with extra closing parentheses
-    cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)\)+/g, "[$1]($2)");
+    // ONLY clean what's absolutely necessary
+    if (!isStreaming) {
+      // Remove trailing JSON artifacts and format tags
+      cleaned = cleaned.replace(/[\}\]:\}\]]+$/, "");
+      cleaned = cleaned.replace(/\[\/format\]?\s*$/g, "");
+      cleaned = cleaned.replace(/\}\]\[\/format:?\s*$/g, "");
+      cleaned = cleaned.replace(/[\{\}\[\]]+$/g, "");
 
-    // Fix links with extra brackets or braces
-    cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)[\)\}\]]+/g, "[$1]($2)");
+      // Remove duplicate text (when entire text is repeated)
+      const halfLength = Math.floor(cleaned.length / 2);
+      const firstHalf = cleaned.substring(0, halfLength);
+      const secondHalf = cleaned.substring(halfLength);
 
-    // Fix any malformed URL encoding in links
-    cleaned = cleaned.replace(
-      /\[([^\]]+)\]\(([^)]+)%([^)]+)\)/g,
-      (match, text, url1, url2) => {
-        // Only fix if it's not already a properly encoded URL
-        if (
-          !url1.includes("%2") &&
-          !url1.includes("%3") &&
-          !url1.includes("%4")
-        ) {
-          return `[${text}](${url1}%${url2})`;
-        }
-        return match; // Leave properly encoded URLs alone
+      if (firstHalf === secondHalf && firstHalf.length > 10) {
+        cleaned = firstHalf;
       }
-    );
-
-    // Remove any stray JSON characters
-    cleaned = cleaned.replace(/[\{\}\[\]]+$/g, "");
+    }
 
     return cleaned;
   };
@@ -53,7 +45,7 @@ export default function StreamingBubble({ message }) {
     if (isStreaming) {
       cursorInterval = setInterval(() => {
         setCursorVisible((prev) => !prev);
-      }, 530); // blink every 530ms
+      }, 530);
     }
 
     return () => {
@@ -70,37 +62,31 @@ export default function StreamingBubble({ message }) {
       content = message.content.text;
     }
 
-    // If content has changed, clean it first, then trigger the animation
     if (content !== currentContent) {
       setIsAnimating(true);
+      setCurrentContent(content);
+      checkForRichContent(content);
 
-      // Clean the content before setting it
-      const cleanedContent = cleanResponseText(content);
-
-      // Set a timeout to stop the animation after a brief period
       const timeout = setTimeout(() => {
         setIsAnimating(false);
       }, 300);
 
-      // Update the content with the cleaned version
-      setCurrentContent(cleanedContent);
-
-      // Check for rich content (emails, links, etc.)
-      checkForRichContent(cleanedContent);
-
-      // Cleanup timeout
       return () => clearTimeout(timeout);
     }
   }, [message.content, currentContent]);
 
   // Detect when streaming has stopped
   useEffect(() => {
-    // Check if streaming is complete (message is no longer marked as streaming)
     if (message.isStreaming === false && isStreaming === true) {
       setIsStreaming(false);
-      setCursorVisible(false); // Hide cursor when streaming is complete
+      setCursorVisible(false);
+
+      const finalCleaned = cleanResponseText(currentContent);
+      if (finalCleaned !== currentContent) {
+        setCurrentContent(finalCleaned);
+      }
     }
-  }, [message.isStreaming, isStreaming]);
+  }, [message.isStreaming, isStreaming, currentContent]);
 
   // Check if the content contains rich elements like emails, links, etc.
   const checkForRichContent = (content) => {

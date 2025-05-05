@@ -35,10 +35,10 @@ export default function ChatInterface() {
   // Message and UI state
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [lastUserMessage, setLastUserMessage] = useState(null);
+
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetchError, setIsFetchError] = useState(false);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStyleMenuOpen, setIsStyleMenuOpen] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState("NORMAL");
@@ -123,7 +123,6 @@ export default function ChatInterface() {
   // Fetch remaining API requests
   const fetchRemainingRequests = async () => {
     try {
-      setIsFetchError(false);
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
 
       const controller = new AbortController();
@@ -353,7 +352,6 @@ export default function ChatInterface() {
     updateCache(updatedMessages);
 
     setCurrentUserMessage(userMessage);
-    setLastUserMessage(userMessage);
 
     // Clear input field
     setNewMessage("");
@@ -361,7 +359,6 @@ export default function ChatInterface() {
     // Set loading states
     setIsLoading(true);
     setIsAiTyping(true);
-    setIsFetchError(false);
 
     // Create a streaming message placeholder
     const streamingMessageId = Date.now() + 1;
@@ -494,24 +491,14 @@ export default function ChatInterface() {
                 const completionData = JSON.parse(dataContent);
 
                 if (completionData.done) {
-                  // IMPROVED: Clean the full text before processing
-                  let cleanedFullText = cleanResponseText(
-                    completionData.fullText || ""
-                  );
-
-                  // Process the full response
-                  const processedContent =
-                    processCompletedResponse(cleanedFullText);
-
-                  // Update the message with the processed content
+                  // IMPORTANT: Don't update content again, just mark as done
                   setMessages((prev) => {
                     const updated = prev.map((msg) =>
                       msg.id === streamingMessageId
                         ? {
                             ...msg,
-                            content: processedContent,
                             isStreaming: false,
-                            originalText: completionData.fullText,
+                            // Don't update content here - it's already been updated by streaming chunks
                           }
                         : msg
                     );
@@ -530,23 +517,6 @@ export default function ChatInterface() {
                 console.error("Error parsing completion data:", error);
                 setIsAiTyping(false);
                 setIsLoading(false);
-
-                // Keep any accumulated text but clean it
-                setMessages((prev) => {
-                  const updated = prev.map((msg) =>
-                    msg.id === streamingMessageId
-                      ? {
-                          ...msg,
-                          isStreaming: false,
-                          content:
-                            cleanResponseText(accumulatedText) || msg.content,
-                        }
-                      : msg
-                  );
-
-                  updateCache(updated);
-                  return updated;
-                });
               }
             } else if (eventName === "message") {
               // Regular message event - unescape special characters
@@ -557,14 +527,11 @@ export default function ChatInterface() {
               // Add to accumulated text
               accumulatedText += textChunk;
 
-              // IMPROVED: Clean the accumulated text before updating
-              const cleanedText = cleanResponseText(accumulatedText);
-
               // Update the message with the accumulated text
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === streamingMessageId
-                    ? { ...msg, content: cleanedText }
+                    ? { ...msg, content: accumulatedText }
                     : msg
                 )
               );
@@ -638,11 +605,9 @@ export default function ChatInterface() {
     updateCache(updatedMessages);
 
     setCurrentUserMessage(userMessage);
-    setLastUserMessage(userMessage);
     setNewMessage("");
     setIsLoading(true);
     setIsAiTyping(true);
-    setIsFetchError(false);
 
     // Create a streaming message placeholder
     const streamingMessageId = Date.now() + 1;
@@ -758,10 +723,10 @@ export default function ChatInterface() {
                   }
                 }}
                 rows="1"
-                className={`w-full p-3 rounded-2xl   
+                className={`w-full p-14 rounded-2xl   
                   text-slate-800 dark:text-white border bg-slate-200 dark:bg-slate-800 border-slate-200 
                   dark:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 
-                  outline-none transition-all shadow-inner pb-14 pl-4 pt-4
+                  outline-none transition-all shadow-inner pb-14 pl-4 pt-4 
                   ${
                     isAiTyping || isLoading || remaining <= 0
                       ? "opacity-60 cursor-not-allowed"
@@ -770,8 +735,9 @@ export default function ChatInterface() {
                 placeholder={getConnectionMessage()}
                 disabled={isAiTyping || isLoading || remaining <= 0}
               />
+
               {/* In-text controls */}
-              <div className="absolute left-3 bottom-3 flex items-center">
+              <div className="absolute left-3 bottom-3 mt-2 flex items-center">
                 {/* Attach File Button */}
                 <button
                   type="button"

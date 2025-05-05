@@ -86,25 +86,23 @@ export default function ContactForm({ data }) {
         title: partialData.title || "Contact Form",
         recipientName: partialData.recipientName || "Razvan Bordinc",
         recipientPosition: partialData.recipientPosition || "Software Engineer",
-        socialLinks: Array.isArray(partialData.socialLinks)
-          ? partialData.socialLinks
-          : [
-              {
-                platform: "LinkedIn",
-                url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
-                icon: "linkedin",
-              },
-              {
-                platform: "GitHub",
-                url: "https://github.com/RazvanBordinc",
-                icon: "github",
-              },
-              {
-                platform: "Email",
-                url: "mailto:razvan.bordinc@yahoo.com",
-                icon: "mail",
-              },
-            ],
+        socialLinks: [
+          {
+            platform: "LinkedIn",
+            url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
+            icon: "linkedin",
+          },
+          {
+            platform: "GitHub",
+            url: "https://github.com/RazvanBordinc",
+            icon: "github",
+          },
+          {
+            platform: "Email",
+            url: "mailto:razvan.bordinc@yahoo.com",
+            icon: "mail",
+          },
+        ],
         emailSubject:
           partialData.emailSubject || "Contact from Portfolio Website",
       };
@@ -280,20 +278,6 @@ export default function ContactForm({ data }) {
           {formData.title || "Contact Form"}
         </h3>
       </div>
-
-      {/* Error notification */}
-      {(dataError || error) && (
-        <div className="bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-800/30 p-3 text-orange-800 dark:text-orange-300 flex items-center">
-          <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-          <span>
-            {error
-              ? error
-              : dataError
-              ? "Note: Using default contact form template. " + dataError
-              : ""}
-          </span>
-        </div>
-      )}
 
       {submitted ? (
         <div className="p-6 flex flex-col items-center justify-center text-center">

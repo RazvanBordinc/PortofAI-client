@@ -193,41 +193,59 @@ export default function InfoPage() {
       ),
     },
     {
-      id: "inspiration",
-      title: "Inspiration",
+      id: "details",
+      title: "details",
       icon: <Lightbulb size={20} />,
       content: (
-        <div className="space-y-4">
-          <p className="text-slate-800 dark:text-slate-200">
-            The inspiration for this project came from several sources:
-          </p>
-          <ul className="list-disc pl-5 space-y-2 text-slate-700 dark:text-slate-300">
-            <li>
-              The growing trend of conversational UI in modern web applications
-            </li>
-            <li>
-              The desire to create a more engaging and interactive portfolio
-              experience compared to traditional static websites
-            </li>
-            <li>
-              The challenge of creating a portfolio that showcases both design
-              sensibilities and technical implementation
-            </li>
-            <li>
-              Interest in exploring the intersection of AI chat interfaces and
-              personal branding
-            </li>
-          </ul>
-          <p className="text-slate-800 dark:text-slate-200">
-            The design aesthetic draws inspiration from modern chat applications
-            while incorporating a unique visual identity through color schemes,
-            animations, and layout choices.
-          </p>
-          <p className="text-slate-800 dark:text-slate-200">
-            This project represents my approach to problem-solving and
-            creativity in web development, showcasing both technical skills and
-            design thinking.
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-md border border-indigo-100 dark:border-indigo-900/50">
+            <h4 className="font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
+              Backend
+            </h4>
+            <ul className="list-disc pl-5 space-y-1 text-slate-700 dark:text-slate-300">
+              <li>.NET Core (Web API)</li>
+              <li>Entity Framework</li>
+              <li>SQL Server</li>
+              <li>LINQ, JWT, Redis</li>
+              <li>REST, Session, Rate Limiting</li>
+              <li>Roles, OOP</li>
+            </ul>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-md border border-indigo-100 dark:border-indigo-900/50">
+            <h4 className="font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
+              Frontend
+            </h4>
+            <ul className="list-disc pl-5 space-y-1 text-slate-700 dark:text-slate-300">
+              <li>React, Next.js</li>
+              <li>Tailwind CSS</li>
+              <li>Framer Motion</li>
+              <li>Zustand</li>
+              <li>Component libraries</li>
+            </ul>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-md border border-indigo-100 dark:border-indigo-900/50">
+            <h4 className="font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
+              Design & Tools
+            </h4>
+            <ul className="list-disc pl-5 space-y-1 text-slate-700 dark:text-slate-300">
+              <li>Adobe Illustrator</li>
+              <li>Figma</li>
+              <li>Docker</li>
+              <li>Git, Postman, Swagger</li>
+              <li>Visual Studio, VS Code</li>
+            </ul>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-md border border-indigo-100 dark:border-indigo-900/50">
+            <h4 className="font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
+              Additional Skills
+            </h4>
+            <ul className="list-disc pl-5 space-y-1 text-slate-700 dark:text-slate-300">
+              <li>Prompt Engineering</li>
+              <li>AI Knowledge</li>
+              <li>Security & Cryptography</li>
+              <li>Scalability</li>
+            </ul>
+          </div>
         </div>
       ),
     },

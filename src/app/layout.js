@@ -1,5 +1,3 @@
-/** @format */
-
 import Sidebar from "@/components/shared/Sidebar";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/utils/context/ThemeContext";

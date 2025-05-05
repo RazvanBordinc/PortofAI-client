@@ -1,5 +1,3 @@
-/** @format */
-
 import ChatbotIntegration from "@/components/screen/ChatbotIntegration";
 import React from "react";
 

@@ -6,37 +6,46 @@
 export const cleanResponseText = (text) => {
   if (!text) return text;
 
-  // Remove trailing JSON artifacts that appear frequently
+  // Remove trailing JSON artifacts
   let cleaned = text.replace(/[\}\]:\}\]]+$/, "");
 
-  // Fix malformed markdown links with extra closing parentheses
+  // Fix all link issues
+  cleaned = fixMalformedLinks(cleaned);
   cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)\)+/g, "[$1]($2)");
-
-  // Fix links with extra brackets or braces
   cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)[\)\}\]]+/g, "[$1]($2)");
 
-  // Fix any malformed URL encoding in links
-  cleaned = cleaned.replace(
-    /\[([^\]]+)\]\(([^)]+)%([^)]+)\)/g,
-    (match, text, url1, url2) => {
-      // Only fix if it's not already a properly encoded URL
-      if (
-        !url1.includes("%2") &&
-        !url1.includes("%3") &&
-        !url1.includes("%4")
-      ) {
-        return `[${text}](${url1}%${url2})`;
-      }
-      return match; // Leave properly encoded URLs alone
-    }
-  );
-
-  // Remove any stray JSON characters
+  // Additional cleaning...
+  cleaned = cleaned.replace(/\[\/format\]?\s*$/g, "");
+  cleaned = cleaned.replace(/\}\]\[\/format:?\s*$/g, "");
   cleaned = cleaned.replace(/[\{\}\[\]]+$/g, "");
 
   return cleaned;
 };
+export const fixMalformedLinks = (text) => {
+  if (!text) return text;
 
+  let cleaned = text;
+
+  // Fix links with missing opening bracket
+  cleaned = cleaned.replace(
+    /(\s|^)github\.com\/([^)\s]+)\)/g,
+    "[$2](https://github.com/$2)"
+  );
+
+  // Fix links with missing protocol
+  cleaned = cleaned.replace(
+    /\[([^\]]+)\]\(github\.com\/([^)]+)\)/g,
+    "[$1](https://github.com/$2)"
+  );
+
+  // Fix any other malformed links
+  cleaned = cleaned.replace(
+    /\[([^\]]+)\]\(([^https?][^)]+)\)/g,
+    "[$1](https://$2)"
+  );
+
+  return cleaned;
+};
 // Create default contact form data function at the module level
 export const createDefaultContactData = () => {
   return {
@@ -54,6 +63,11 @@ export const createDefaultContactData = () => {
         platform: "GitHub",
         url: "https://github.com/RazvanBordinc",
         icon: "github",
+      },
+      {
+        platform: "Email",
+        url: "razvan.bordinc@yahoo.com",
+        icon: "mail",
       },
     ],
   };
@@ -76,14 +90,18 @@ export const fixTruncatedOrMalformedJson = (jsonStr) => {
       return cleaned;
     } catch {}
 
-    // Step-by-step cleanup
+    // Fix common JSON issues
     cleaned = cleaned
       .replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":') // Add missing quotes
       .replace(/\\'/g, "\\TEMP_QUOTE") // Preserve escaped single quotes
       .replace(/'/g, '"') // Replace unescaped single quotes
       .replace(/\\TEMP_QUOTE/g, "\\'") // Restore escaped quotes
       .replace(/,\s*([}\]])/g, "$1") // Remove trailing commas
-      .replace(/}(\s*{)/g, "},$1"); // Insert missing commas between objects in arrays
+      .replace(/}(\s*{)/g, "},$1"); // Insert missing commas
+
+    // Fix malformed email formatting in JSON
+    cleaned = cleaned.replace(/"Email":\s*\[([^\]]+)\]/g, '"Email": "$1"');
+    cleaned = cleaned.replace(/"Email":\s*([^,}]+)(?=[,}])/g, '"Email": "$1"');
 
     // Balance braces and brackets
     const balanceSymbols = (symbol, opposite) => {
@@ -95,24 +113,21 @@ export const fixTruncatedOrMalformedJson = (jsonStr) => {
 
     cleaned += balanceSymbols("{", "}");
     cleaned += balanceSymbols("[", "]");
-    cleaned.replace(/\}\]\[\/format:?\s*/g, "");
+    cleaned = cleaned.replace(/\}\]\[\/format:?\s*/g, "");
+
     // Final parse attempt
     try {
-      JSON.parse(cleaned);
-      return cleaned;
+      const parsed = JSON.parse(cleaned);
+      return JSON.stringify(parsed); // Re-stringify to ensure valid JSON
     } catch (error) {
-      if (cleaned.includes("socialLinks") || cleaned.includes("Contact Form")) {
-        return JSON.stringify(createDefaultContactData(), null, 2);
-      }
-      return cleaned;
+      console.log("JSON parsing failed, using default data");
+      return JSON.stringify(createDefaultContactData());
     }
   } catch (error) {
-    console.log("here", 222);
-
-    return JSON.stringify(createDefaultContactData(), null, 2);
+    console.log("Error in fixTruncatedOrMalformedJson, using default data");
+    return JSON.stringify(createDefaultContactData());
   }
 };
-
 /**
  * Processes URLs and emails in text to make them clickable
  * @param {string} text - Text to process
@@ -157,12 +172,11 @@ export const processUrlsAndEmails = (text) => {
       return email;
     }
 
-    // Handle Yahoo email addresses with special styling
     if (email.includes("@yahoo.com")) {
-      return `[${email}](mailto:${email})`;
+      return `[${email}](${email})`;
     }
 
-    return `[${email}](mailto:${email})`;
+    return `[${email}](${email})`;
   });
 
   return text;
@@ -174,58 +188,53 @@ export const processUrlsAndEmails = (text) => {
  */
 export const processCompletedResponse = (fullText) => {
   // Apply the text cleaning first to fix any formatting issues
-  const cleanedText = cleanResponseText(fullText);
+  fullText = cleanResponseText(fullText);
 
   // Check for format tags in the text
-  let format = "text"; // Default format
-  const formatMatch = cleanedText.match(/\[format:(text|contact)\]/i);
+  let format = "text";
+  const formatMatch = fullText.match(/\[format:(text|contact)\]/i);
   if (formatMatch) {
     format = formatMatch[1].toLowerCase();
   }
 
   // Extract data if present
   let formatData = null;
-  const dataMatch = cleanedText.match(/\[data:([\s\S]*?)\]/s);
+  const dataMatch = fullText.match(/\[data:([\s\S]*?)\]/s);
 
   if (dataMatch && dataMatch[1]) {
     try {
-      // Clean and parse the JSON data
       let jsonString = dataMatch[1].trim();
+
+      // Fix the JSON before parsing
       jsonString = fixTruncatedOrMalformedJson(jsonString);
 
       try {
         formatData = JSON.parse(jsonString);
       } catch (error) {
         console.error("Error parsing JSON data:", error);
-        formatData = { error: `Could not parse JSON data: ${error.message}` };
-
-        // For contact form, use default data
-        if (format === "contact") {
-          formatData = createDefaultContactData();
-        }
+        formatData = createDefaultContactData();
       }
     } catch (error) {
       console.error("Error processing data tag:", error);
     }
   } else if (format === "contact") {
-    // Default contact data if format is contact but no data is found
     formatData = createDefaultContactData();
   }
 
   // Clean the response text
-  let finalText = cleanedText
+  let cleanedText = fullText
     .replace(/\[format:(text|contact)\]/gi, "")
     .replace(/\[\/format\]/gi, "");
 
   if (dataMatch) {
-    finalText = finalText.replace(/\[data:[\s\S]*?\]/s, "");
+    cleanedText = cleanedText.replace(/\[data:[\s\S]*?\]/s, "");
   }
 
   // Process URLs and email addresses in the text
-  finalText = processUrlsAndEmails(finalText);
+  cleanedText = processUrlsAndEmails(cleanedText);
 
   return {
-    text: finalText.trim(),
+    text: cleanedText.trim(),
     format,
     data: formatData,
   };
