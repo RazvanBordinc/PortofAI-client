@@ -117,7 +117,7 @@ export function useConversationHistory() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
       const response = await fetch(`${apiUrl}/api/conversation/clear`, {
         method: "POST",
