@@ -271,7 +271,7 @@ export default function Sidebar({ children }) {
         </div>
 
         {/* Theme toggle button */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 mb-16 md:mb-0">
           <div
             className="flex items-center px-4 py-2 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-slate-700 dark:text-slate-300 rounded-lg transition-all"
             onClick={toggleTheme}
