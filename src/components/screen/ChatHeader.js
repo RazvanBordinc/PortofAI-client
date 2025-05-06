@@ -16,10 +16,10 @@ export default function ChatHeader({ onHistoryClick }) {
     >
       <div className="max-w-3xl w-full flex items-center justify-between">
         <div className="flex items-center">
-          <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mr-3">
+          <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-full items-center justify-center mr-3 hidden md:flex">
             <MessageSquare className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
           </div>
-          <h1 className="text-lg font-semibold text-slate-800 dark:text-white">
+          <h1 className="text-lg font-semibold text-slate-800 dark:text-white ml-16 md:ml-0 mt-1.5 md:mt-0">
             PortofAI Chat
           </h1>
         </div>

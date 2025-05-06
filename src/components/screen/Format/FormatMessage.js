@@ -295,10 +295,15 @@ export default function FormatMessage({ message }) {
 
   return (
     <div className="space-y-3">
-      {/* Only show text content if it's not empty - use TextFormatter here for consistent markdown formatting */}
+      {/* Clean text content more aggressively before rendering */}
       {processedMessage.text && processedMessage.text.trim() !== "" && (
         <div className="whitespace-pre-wrap leading-relaxed">
-          <TextFormatter text={processedMessage.text} isAnimated={false} />
+          <TextFormatter
+            text={processedMessage.text
+              .replace(/\[\/format\]/gi, "")
+              .replace(/\[format:(text|contact)\]/gi, "")}
+            isAnimated={false}
+          />
         </div>
       )}
 

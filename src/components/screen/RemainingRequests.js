@@ -17,7 +17,7 @@ export default function RemainingRequests({ remaining, total = 15 }) {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center text-sm text-slate-600 dark:text-slate-400">
+        <div className="flex items-center text-xs sm:text-sm text-slate-600 dark:text-slate-400">
           <MessageSquareDashed size={15} className="mr-1" />
           <span>Daily messages remaining</span>
         </div>

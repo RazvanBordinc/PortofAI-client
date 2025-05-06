@@ -845,7 +845,7 @@ export default function ChatInterface() {
             <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center ml-2 text-xs text-indigo-600 dark:text-indigo-400"
+              className="flex items-center md:ml-2 text-xs text-indigo-600 dark:text-indigo-400"
             >
               <PenLine size={12} className="mr-1" />
               <span>

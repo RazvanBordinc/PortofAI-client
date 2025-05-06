@@ -9,15 +9,18 @@ export const cleanResponseText = (text) => {
   // Remove trailing JSON artifacts
   let cleaned = text.replace(/[\}\]:\}\]]+$/, "");
 
+  // Remove all format tags with proper regex patterns
+  cleaned = cleaned.replace(/\[format:(text|contact)\]/gi, "");
+  cleaned = cleaned.replace(/\[\/format\]/gi, "");
+  cleaned = cleaned.replace(/\[\/format/gi, ""); // Also catch incomplete tags
+
+  // Clean up any other format-related tags
+  cleaned = cleaned.replace(/\[data:[\s\S]*?\]/gs, "");
+
   // Fix all link issues
   cleaned = fixMalformedLinks(cleaned);
   cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)\)+/g, "[$1]($2)");
   cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)[\)\}\]]+/g, "[$1]($2)");
-
-  // Additional cleaning...
-  cleaned = cleaned.replace(/\[\/format\]?\s*$/g, "");
-  cleaned = cleaned.replace(/\}\]\[\/format:?\s*$/g, "");
-  cleaned = cleaned.replace(/[\{\}\[\]]+$/g, "");
 
   return cleaned;
 };
