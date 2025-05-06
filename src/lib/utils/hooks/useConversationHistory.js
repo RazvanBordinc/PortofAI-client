@@ -122,7 +122,7 @@ export function useConversationHistory() {
       const response = await fetch(`${apiUrl}/api/conversation/clear`, {
         method: "POST",
         signal: controller.signal,
-        credentials: "cross-origin",
+        credentials: "include",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
