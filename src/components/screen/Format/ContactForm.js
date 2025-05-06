@@ -99,7 +99,7 @@ export default function ContactForm({ data }) {
           },
           {
             platform: "Email",
-            url: "mailto:razvan.bordinc@yahoo.com",
+            url: "mailto:bordincrazvan2004@gmail.com",
             icon: "mail",
           },
         ],
@@ -126,7 +126,7 @@ export default function ContactForm({ data }) {
           },
           {
             platform: "Email",
-            url: "mailto:razvan.bordinc@yahoo.com",
+            url: "mailto:bordincrazvan2004@gmail.com",
             icon: "mail",
           },
         ],
@@ -224,13 +224,13 @@ export default function ContactForm({ data }) {
 
       if (err.name === "AbortError") {
         const directEmailInfo =
-          "You can also contact me directly at razvan.bordinc@yahoo.com";
+          "You can also contact me directly at bordincrazvan2004@gmail.com";
         setError(`Request timed out. ${directEmailInfo}`);
       } else {
         setError(
           `${
             err.message || "Something went wrong"
-          }. You can also contact me directly at razvan.bordinc@yahoo.com`
+          }. You can also contact me directly at bordincrazvan2004@gmail.com`
         );
       }
     } finally {

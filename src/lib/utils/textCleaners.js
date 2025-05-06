@@ -69,7 +69,7 @@ export const createDefaultContactData = () => {
       },
       {
         platform: "Email",
-        url: "razvan.bordinc@yahoo.com",
+        url: "bordincrazvan2004@gmail.com",
         icon: "mail",
       },
     ],

@@ -34,7 +34,7 @@ const createDefaultFormData = () => {
       },
       {
         platform: "Email",
-        url: "razvan.bordinc@yahoo.com",
+        url: "bordincrazvan2004@gmail.com",
         icon: "mail",
       },
     ],
@@ -68,7 +68,122 @@ export default function FormatMessage({ message }) {
     };
 
     try {
-      // Define extractFormatAndData function inside useCallback
+      // Get message content for duplication and contact detection
+      let messageContent = "";
+      if (typeof originalMessage === "string") {
+        messageContent = originalMessage;
+      } else if (originalMessage && typeof originalMessage === "object") {
+        if (
+          originalMessage.content &&
+          typeof originalMessage.content === "object"
+        ) {
+          messageContent = originalMessage.content.text || "";
+        } else if (originalMessage.text !== undefined) {
+          messageContent = originalMessage.text;
+        } else if (typeof originalMessage.content === "string") {
+          messageContent = originalMessage.content;
+        }
+      }
+
+      // 1. DUPLICATION CHECK - Check and fix duplicated text
+      if (typeof messageContent === "string" && messageContent.length > 20) {
+        const halfLength = Math.floor(messageContent.length / 2);
+
+        // Check for exact duplication (same text repeated twice)
+        const firstHalf = messageContent.substring(0, halfLength);
+        const secondHalf = messageContent.substring(halfLength);
+
+        if (firstHalf === secondHalf) {
+          debugLog("Detected exact duplication, using only first half");
+          messageContent = firstHalf;
+
+          // Update the original message with deduplicated content
+          if (typeof originalMessage === "string") {
+            originalMessage = messageContent;
+          } else if (originalMessage && typeof originalMessage === "object") {
+            if (
+              originalMessage.content &&
+              typeof originalMessage.content === "object"
+            ) {
+              originalMessage.content.text = messageContent;
+            } else if (originalMessage.text !== undefined) {
+              originalMessage.text = messageContent;
+            } else if (typeof originalMessage.content === "string") {
+              originalMessage.content = messageContent;
+            }
+          }
+        }
+
+        // Also check for partial duplications (at least 20 characters)
+        for (let i = 20; i < messageContent.length / 2; i++) {
+          const pattern = messageContent.substring(0, i);
+          const nextChunk = messageContent.substring(i, i + pattern.length);
+
+          if (pattern === nextChunk) {
+            debugLog("Detected partial duplication, fixing text");
+            messageContent =
+              pattern + messageContent.substring(i + pattern.length);
+
+            // Update the original message with deduplicated content
+            if (typeof originalMessage === "string") {
+              originalMessage = messageContent;
+            } else if (originalMessage && typeof originalMessage === "object") {
+              if (
+                originalMessage.content &&
+                typeof originalMessage.content === "object"
+              ) {
+                originalMessage.content.text = messageContent;
+              } else if (originalMessage.text !== undefined) {
+                originalMessage.text = messageContent;
+              } else if (typeof originalMessage.content === "string") {
+                originalMessage.content = messageContent;
+              }
+            }
+            break;
+          }
+        }
+      }
+
+      // 2. CONTACT DETECTION - Check for contact information patterns
+      if (typeof messageContent === "string") {
+        const contactPatterns = [
+          /contact me/i,
+          /Email:.*?razvan\.bordinc@yahoo\.com/i,
+          /mailto:razvan\.bordinc@yahoo\.com/i,
+          /GitHub:.*?github\.com\/RazvanBordinc/i,
+          /LinkedIn/i,
+          /get in touch/i,
+          /reach out/i,
+          /contact information/i,
+        ];
+
+        // Check if any contact patterns are found
+        const isContactInfo = contactPatterns.some((pattern) =>
+          pattern.test(messageContent)
+        );
+
+        // Also check if the message contains both email and GitHub/LinkedIn references
+        const hasEmail = messageContent.includes("razvan.bordinc@yahoo.com");
+        const hasSocialProfiles =
+          (messageContent.includes("GitHub") ||
+            messageContent.includes("github.com")) &&
+          (messageContent.includes("LinkedIn") ||
+            messageContent.includes("linkedin.com"));
+
+        if (isContactInfo || (hasEmail && hasSocialProfiles)) {
+          debugLog(
+            "Detected contact information pattern, using contact format"
+          );
+          processed.text = messageContent
+            .replace(/\[format:(text|contact)\]/gi, "")
+            .replace(/\[\/format\]/gi, "");
+          processed.format = "contact";
+          processed.data = createDefaultFormData();
+          return setProcessedMessage(processed);
+        }
+      }
+
+      // 3. REGULAR FORMAT DETECTION - Continue with normal processing
       const extractFormatAndData = (text) => {
         if (typeof text !== "string")
           return {
@@ -82,16 +197,18 @@ export default function FormatMessage({ message }) {
         let extractedData = null;
 
         try {
-          // Extract format
-          const formatRegex = /\[format:(text|contact)\]|\* \*\*Email:\*\*/i;
+          // Extract format with improved regex
+          const formatRegex =
+            /\[format:(text|contact)\]|\* \*\*Email:\*\*|\bcontact\s+form\b/i;
           const formatMatch = text.match(formatRegex);
           if (formatMatch) {
             formatType = formatMatch[1]?.toLowerCase() || "contact";
             cleanedText = cleanedText.replace(formatMatch[0], "");
           }
 
-          // Remove [/format] tags
+          // Remove format closing tags
           cleanedText = cleanedText.replace(/\[\/format\]/gi, "");
+          cleanedText = cleanedText.replace(/\[\/format/gi, ""); // Also catch incomplete tags
 
           // Extract data with better error handling
           const dataRegex = /\[data:([\s\S]*?)\]/;
@@ -100,14 +217,11 @@ export default function FormatMessage({ message }) {
           if (dataMatch && dataMatch[1]) {
             try {
               let jsonStr = dataMatch[1].trim();
-
-              // Log the string for debugging
               debugLog("Raw JSON data:", jsonStr);
 
               // Fix the JSON with our global utility
               jsonStr = fixTruncatedOrMalformedJson(jsonStr);
 
-              // Try parsing the cleaned JSON
               try {
                 extractedData = JSON.parse(jsonStr);
                 debugLog("Successfully extracted JSON data");
@@ -126,17 +240,18 @@ export default function FormatMessage({ message }) {
               cleanedText = cleanedText.replace(dataMatch[0], "");
             } catch (error) {
               console.error("Error handling JSON data:", error);
-
-              // Create fallback data based on format type
               extractedData = createFallbackData(formatType);
-
-              // Remove the problematic data tag from the text
               cleanedText = cleanedText.replace(dataMatch[0], "");
-              cleanedText +=
-                "\n\nNote: There was an issue with the data format. Using default template.";
             }
+          } else if (
+            formatType === "contact" ||
+            cleanedText.includes("razvan.bordinc@yahoo.com")
+          ) {
+            // If contact format is detected but no data, use default contact data
+            debugLog("Contact format detected, using default contact data");
+            extractedData = createDefaultFormData();
           } else if (formatType && formatType !== "text") {
-            // If a non-text format is specified but no data is provided, create fallback data
+            // For other non-text formats without data
             debugLog(`No data found for ${formatType} format, using fallback`);
             extractedData = createFallbackData(formatType);
           }
@@ -182,6 +297,12 @@ export default function FormatMessage({ message }) {
             processed.text = originalMessage.content.text;
             processed.format = originalMessage.content.format || "text";
             processed.data = originalMessage.content.data || null;
+
+            // Special handling for contact format without data
+            if (processed.format === "contact" && !processed.data) {
+              processed.data = createDefaultFormData();
+            }
+
             return setProcessedMessage(processed);
           }
         }
@@ -197,6 +318,12 @@ export default function FormatMessage({ message }) {
 
           // Use data from extracted or provided
           processed.data = extractedData || originalMessage.data || null;
+
+          // Special handling for contact format without data
+          if (processed.format === "contact" && !processed.data) {
+            processed.data = createDefaultFormData();
+          }
+
           return setProcessedMessage(processed);
         }
 

@@ -528,13 +528,28 @@ export default function ChatInterface() {
               accumulatedText += textChunk;
 
               // Update the message with the accumulated text
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === streamingMessageId
-                    ? { ...msg, content: accumulatedText }
-                    : msg
-                )
-              );
+              if (
+                textChunk.includes("contact") ||
+                textChunk.includes("Email:") ||
+                textChunk.includes("GitHub:") ||
+                accumulatedText.includes("bordincrazvan2004@gmail.com")
+              ) {
+                // Force format to contact form
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === streamingMessageId
+                      ? {
+                          ...msg,
+                          content: {
+                            text: accumulatedText,
+                            format: "contact",
+                            data: createDefaultContactData(),
+                          },
+                        }
+                      : msg
+                  )
+                );
+              }
             }
           } catch (error) {
             console.error("Error processing SSE line:", error);
