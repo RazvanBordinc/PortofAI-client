@@ -184,7 +184,7 @@ export default function ContactForm({ data }) {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
       console.log("Sending contact form submission to API");
 

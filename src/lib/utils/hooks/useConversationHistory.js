@@ -31,11 +31,11 @@ export function useConversationHistory() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
       const response = await fetch(`${apiUrl}/api/conversation/history`, {
         signal: controller.signal,
-        credentials: "cross-origin",
+        credentials: "include",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
