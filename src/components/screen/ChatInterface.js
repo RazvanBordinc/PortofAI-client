@@ -130,11 +130,11 @@ export default function ChatInterface() {
 
       const response = await fetch(`${apiUrl}/api/remaining`, {
         signal: controller.signal,
-        credentials: "cross-origin",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
+        credentials: "include",
       });
 
       clearTimeout(timeoutId);

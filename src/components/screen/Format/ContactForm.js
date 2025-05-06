@@ -194,8 +194,8 @@ export default function ContactForm({ data }) {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          credentials: "cross-origin",
         },
+        credentials: "include",
         body: JSON.stringify(formState), // { name, email, phone, message }
       });
 
