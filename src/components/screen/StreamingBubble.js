@@ -139,14 +139,14 @@ export default function StreamingBubble({ message }) {
 
       {/* Message Bubble - with enhanced styling for rich content */}
       <div
-        className={`max-w-[75%] p-3 rounded-2xl shadow-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none hover:shadow-lg ${
+        className={`max-w-[75%] p-3 rounded-2xl shadow-md break-words bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none hover:shadow-lg ${
           hasRichContent
             ? "border border-indigo-100 dark:border-indigo-900/40"
             : ""
         }`}
       >
         {/* Message Content with Animation only for the text chunks */}
-        <div className="whitespace-pre-wrap leading-relaxed relative">
+        <div className="whitespace-pre-wrap leading-relaxed relative break-words">
           {/* Add a highlight effect for new content */}
           <AnimatePresence>
             {isAnimating && (

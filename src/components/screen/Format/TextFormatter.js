@@ -260,7 +260,7 @@ const NormalText = ({ text, isAnimated }) => {
 // Bold text component
 const BoldText = ({ text, isAnimated }) => {
   const element = (
-    <strong className="font-bold text-amber-800 dark:text-amber-300">
+    <strong className="font-bold text-amber-800 dark:text-amber-300 break-words">
       {text}
     </strong>
   );
@@ -281,7 +281,9 @@ const BoldText = ({ text, isAnimated }) => {
 // Italic text component
 const ItalicText = ({ text, isAnimated }) => {
   const element = (
-    <em className="italic text-amber-700 dark:text-amber-400">{text}</em>
+    <em className="italic text-amber-700 dark:text-amber-400 break-words">
+      {text}
+    </em>
   );
 
   if (!isAnimated) return element;
@@ -300,7 +302,7 @@ const ItalicText = ({ text, isAnimated }) => {
 // Code text component
 const CodeText = ({ text, isAnimated }) => {
   const element = (
-    <code className="px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-sm text-pink-600 dark:text-pink-400">
+    <code className="px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-sm text-pink-600 dark:text-pink-400 break-words">
       {text}
     </code>
   );
@@ -320,12 +322,22 @@ const CodeText = ({ text, isAnimated }) => {
 
 // Link text component
 const LinkText = ({ text, url, isAnimated }) => {
+  if (url && !url.startsWith("http") && !url.startsWith("mailto:")) {
+    if (url.includes("@")) {
+      url = `mailto:${url}`;
+    } else {
+      url = `https://${url}`;
+    }
+  }
+  if (url && url.includes("linkedin.com/in/") && !url.startsWith("http")) {
+    url = `https://${url}`;
+  }
   const element = (
     <a
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-amber-600 dark:text-amber-400 underline hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
+      className="text-amber-600 dark:text-amber-400 underline hover:text-amber-800 dark:hover:text-amber-300 transition-colors break-words"
     >
       {text}
     </a>
@@ -351,7 +363,7 @@ const UrlText = ({ url, isAnimated }) => {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center rounded-md py-1 px-2 bg-blue-50 dark:bg-blue-900/30 text-amber-600 dark:text-amber-300 hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors cursor-pointer no-underline text-sm"
+      className="inline-flex items-center rounded-md py-1 px-2 bg-blue-50 dark:bg-blue-900/30 text-amber-600 dark:text-amber-300 hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors cursor-pointer no-underline text-sm break-words"
     >
       <ExternalLink size={14} className="mr-1.5 flex-shrink-0" />
       <span className="truncate max-w-[200px]">{url}</span>
@@ -378,7 +390,7 @@ const EmailText = ({ email, isAnimated }) => {
   const element = (
     <a
       href={mailtoUrl}
-      className="inline-flex items-center rounded-md py-1 px-2 bg-indigo-50 dark:bg-indigo-900/30 text-amber-600 dark:text-amber-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors cursor-pointer no-underline"
+      className="inline-flex items-center rounded-md py-1 px-2 bg-indigo-50 dark:bg-indigo-900/30 text-amber-600 dark:text-amber-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors cursor-pointer no-underline break-words"
     >
       <Mail size={14} className="mr-1.5 flex-shrink-0" />
       <span>{email}</span>

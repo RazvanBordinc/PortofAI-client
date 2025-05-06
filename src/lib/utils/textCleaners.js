@@ -82,13 +82,13 @@ export const fixTruncatedOrMalformedJson = (jsonStr) => {
   if (!jsonStr || typeof jsonStr !== "string") return jsonStr;
 
   try {
-    let cleaned = jsonStr.trim();
+    // Check if it looks like a contact form with Email but not formatted as JSON
+    if (jsonStr.includes("Email:") && !jsonStr.includes('"Email":')) {
+      console.log("Detected non-JSON contact format, creating default form");
+      return JSON.stringify(createDefaultContactData());
+    }
 
-    // Early return if already valid
-    try {
-      JSON.parse(cleaned);
-      return cleaned;
-    } catch {}
+    let cleaned = jsonStr.trim();
 
     // Fix common JSON issues
     cleaned = cleaned

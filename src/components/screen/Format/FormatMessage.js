@@ -83,10 +83,10 @@ export default function FormatMessage({ message }) {
 
         try {
           // Extract format
-          const formatRegex = /\[format:(text|contact)\]/i;
+          const formatRegex = /\[format:(text|contact)\]|\* \*\*Email:\*\*/i;
           const formatMatch = text.match(formatRegex);
           if (formatMatch) {
-            formatType = formatMatch[1].toLowerCase();
+            formatType = formatMatch[1]?.toLowerCase() || "contact";
             cleanedText = cleanedText.replace(formatMatch[0], "");
           }
 

@@ -110,13 +110,13 @@ export default function ChatBubble({ message }) {
           typeof message.content === "object" && message.content.format ? (
             <FormatMessage message={message.content} />
           ) : (
-            <div className="whitespace-pre-wrap leading-relaxed">
+            <div className="whitespace-pre-wrap leading-relaxed break-words overflow-hidden">
               {/* Always use TextFormatter for AI messages to handle rich content */}
               <TextFormatter text={getMessageContent()} isAnimated={false} />
             </div>
           )
         ) : (
-          <p className="whitespace-pre-wrap leading-relaxed">
+          <p className="whitespace-pre-wrap leading-relaxed break-words overflow-hidden">
             {getMessageContent()}
           </p>
         )}
