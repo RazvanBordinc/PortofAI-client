@@ -20,13 +20,13 @@ export default function ChatBubble({ message }) {
     const content = message.content;
 
     if (typeof content === "string") {
-      return content;
+      return cleanContent(content);
     }
 
     if (typeof content === "object" && content !== null) {
       // If content has a text property, use that
       if (content.text !== undefined) {
-        return content.text;
+        return cleanContent(content.text);
       }
 
       // If it's some other object, convert to a readable string
@@ -40,7 +40,15 @@ export default function ChatBubble({ message }) {
     // Fallback for unexpected content type
     return String(content || "");
   };
+  const cleanContent = (text) => {
+    if (typeof text !== "string") return String(text || "");
 
+    return text
+      .replace(/data:Email:/gi, "")
+      .replace(/\[data:[^\]]*\]/gi, "")
+      .replace(/\[format:[^\]]*\]/gi, "")
+      .replace(/\[\/format\]/gi, "");
+  };
   // Check if the message has rich styling enhancements
   const hasRichStyling = (content) => {
     // Check if the content contains email or links (markdown style or plaintext)

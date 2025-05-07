@@ -12,7 +12,7 @@ const TextFormatter = ({ text, isAnimated = true }) => {
   }
 
   // Process the text to detect and format all elements
-  const formattedElements = processText(text, isAnimated);
+  const formattedElements = processText(cleanFormattingTags(text), isAnimated);
   return <>{formattedElements}</>;
 };
 
@@ -382,7 +382,16 @@ const UrlText = ({ url, isAnimated }) => {
     </motion.span>
   );
 };
+const cleanFormattingTags = (text) => {
+  if (typeof text !== "string") return text;
 
+  return text
+    .replace(/\[format:(text|contact)\]/gi, "")
+    .replace(/\[\/format\]/gi, "")
+    .replace(/data:Email:/gi, "")
+    .replace(/data:[^\]]+/gi, "")
+    .replace(/\[(data|format):[^\]]*\]/gi, "");
+};
 // Email component with special styling
 const EmailText = ({ email, isAnimated }) => {
   // Fix duplicate mailto: problem

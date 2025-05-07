@@ -4,7 +4,7 @@ import StreamingBubble from "./StreamingBubble";
 import { enhanceMessage } from "../../lib/utils/urlDetector";
 
 // Set to true to enable verbose debugging
-const DEBUG = true;
+const DEBUG = false;
 const debugLog = (...args) => {
   if (DEBUG) {
     console.log(...args);

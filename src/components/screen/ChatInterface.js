@@ -119,7 +119,61 @@ export default function ChatInterface() {
       console.log(...args);
     }
   };
+  // Add this function near the top of the file
+  function deduplicate(text) {
+    if (!text || text.length < 30) return text;
 
+    // Fix duplicate sentences at the end of text
+    let cleanedText = text;
+
+    // Check for duplicate sentences (more thorough method)
+    const sentences = cleanedText.split(/([.!?]\s+)/);
+    for (let i = 0; i < sentences.length; i++) {
+      const sentence = sentences[i].trim();
+      // Skip short sentences and punctuation
+      if (sentence.length < 10) continue;
+
+      // Look for duplicate of this sentence later in the text
+      for (let j = i + 1; j < sentences.length; j++) {
+        if (sentences[i] === sentences[j]) {
+          // Found duplicate - remove it by setting to empty
+          sentences[j] = "";
+          console.log("Removed duplicate sentence:", sentence.substring(0, 30));
+        }
+      }
+    }
+
+    // Rejoin without empty entries
+    cleanedText = sentences.filter((s) => s).join("");
+
+    // Check for exact duplication of bullet points (common in your responses)
+    const bulletPoints =
+      cleanedText.match(/\*\s+\*\*[^*]+\*\*:[^*.]+(\.|\n)/g) || [];
+    for (let i = 0; i < bulletPoints.length; i++) {
+      const point = bulletPoints[i].trim();
+      if (point.length < 10) continue;
+
+      // Count occurrences
+      const regex = new RegExp(escapeRegExp(point), "g");
+      const matches = cleanedText.match(regex) || [];
+
+      if (matches.length > 1) {
+        // Replace second+ occurrences
+        cleanedText = cleanedText.replace(regex, (match, offset) => {
+          // Keep the first occurrence, remove duplicates
+          return offset === cleanedText.indexOf(point) ? match : "";
+        });
+        console.log("Removed duplicate bullet point");
+      }
+    }
+
+    return cleanedText;
+  }
+
+  // Helper to escape special regex characters
+  function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
   // Fetch remaining API requests
   const fetchRemainingRequests = async () => {
     try {
@@ -563,11 +617,13 @@ export default function ChatInterface() {
                     msg.id === streamingMessageId
                       ? {
                           ...msg,
-                          content: {
-                            text: accumulatedText,
-                            format: "contact",
-                            data: createDefaultContactData(),
-                          },
+                          content: isContactForm
+                            ? {
+                                text: deduplicate(accumulatedText),
+                                format: "contact",
+                                data: createDefaultContactData(),
+                              }
+                            : deduplicate(accumulatedText),
                           isStreaming: true,
                         }
                       : msg
