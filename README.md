@@ -13,7 +13,7 @@
 
 **An intelligent conversational interface to learn about me and my work in real-time, with data directly from GitHub.**
 
-[Live Demo](#) • [Features](#-key-features) • [Tech Stack](#-tech-stack) • [Installation](#-installation) • [Screenshots](#-screenshots)
+[Live Demo](https://portofai.vercel.app/) • [Features](#-key-features) • [Tech Stack](#-tech-stack) • [Installation](#-installation) • [Screenshots](#-screenshots)
 
 </div>
 
@@ -161,7 +161,7 @@ src/
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/portofai.git
+git clone https://github.com/RazvanBordinc/portofai-client.git
 cd portofai
 
 # Install dependencies
@@ -187,41 +187,24 @@ docker run -p 3000:3000 portofai:latest
 
 ## 🎨 Design Resources
 
-### Canva Design Assets
+### Adobe Illustrator Design Assets
 
-This project utilizes [Canva](https://www.canva.com/) for creating various visual assets:
+This project utilizes [Adobe Illustrator](https://adobe.com) for creating various visual assets:
 
-- **Logo Design**: The PortofAI logo was created using Canva's graphic design tools
+- **Logo Design**: The PortofAI logo was created using Adobe's graphic design tools
 - **Social Media Banners**: Promotional images for sharing on platforms like Twitter and LinkedIn
 - **Documentation Graphics**: Visual aids used throughout this documentation
 - **Presentation Deck**: For pitching and presenting the project
 
-<div align="center">
-  <img src="https://via.placeholder.com/800x400?text=Canva+Design+Assets+for+PortofAI" alt="Canva Design Assets" width="80%">
-</div>
-
 #### Design System
 
-The Canva design system uses these primary colors, matching our application theme:
+The design system uses these primary colors, matching our application theme:
 
 - Primary: `#6366F1` (Indigo 500)
 - Secondary: `#F7941D` (Orange 500)
 - Background Light: `#F8FAFC` (Slate 50)
 - Background Dark: `#0F172A` (Slate 900)
 - Accent: `#A855F7` (Purple 500)
-
----
-
-## 📸 Screenshots
-
-<div align="center">
-  <img src="https://via.placeholder.com/500x300?text=Chat+Interface" alt="Chat Interface" width="45%">
-  <img src="https://via.placeholder.com/500x300?text=Dark+Mode" alt="Dark Mode" width="45%">
-  <img src="https://via.placeholder.com/500x300?text=Mobile+View" alt="Mobile Responsive" width="45%">
-  <img src="https://via.placeholder.com/500x300?text=Contact+Form" alt="Contact Form" width="45%">
-</div>
-
----
 
 ## 🔮 Future Enhancements
 
