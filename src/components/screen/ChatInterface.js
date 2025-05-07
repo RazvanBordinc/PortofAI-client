@@ -538,8 +538,12 @@ export default function ChatInterface() {
               );
 
               // Add to accumulated text
-              accumulatedText += textChunk;
-
+              if (!accumulatedText.endsWith(textChunk)) {
+                accumulatedText += textChunk;
+              } else {
+                console.log("Duplicate chunk detected, skipping");
+              }
+              accumulatedText = removeDuplicatedSentences(accumulatedText);
               // Check for contact information patterns
               const containsContactInfo =
                 textChunk.includes("contact") ||
@@ -649,7 +653,36 @@ export default function ChatInterface() {
       });
     }
   };
+  function removeDuplicatedSentences(text) {
+    if (!text || text.length < 50) return text;
 
+    // Split text into sentences for analysis
+    const sentences = text.split(/([.!?]\s+)/);
+    const uniqueSentences = [];
+    const seen = new Set();
+
+    for (let i = 0; i < sentences.length; i++) {
+      const sentence = sentences[i];
+      // Skip very short segments as they might be punctuation
+      if (sentence.length < 5) {
+        uniqueSentences.push(sentence);
+        continue;
+      }
+
+      // Check if we've seen this sentence before
+      if (!seen.has(sentence)) {
+        seen.add(sentence);
+        uniqueSentences.push(sentence);
+      } else {
+        console.log(
+          "Removed duplicate sentence:",
+          sentence.substring(0, 20) + "..."
+        );
+      }
+    }
+
+    return uniqueSentences.join("");
+  }
   // Handle send message - uses sendMessageToApi
   const handleSendMessage = async (e) => {
     e?.preventDefault(); // Make preventDefault optional for suggestion clicks

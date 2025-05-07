@@ -387,22 +387,24 @@ const UrlText = ({ url, isAnimated }) => {
 const EmailText = ({ email, isAnimated }) => {
   // Fix duplicate mailto: problem
   let mailtoUrl = email;
+  let displayEmail = email;
 
-  // Remove any existing mailto: prefix before adding it again
+  // Remove any existing mailto: prefix before adding it
   if (mailtoUrl.startsWith("mailto:")) {
     mailtoUrl = mailtoUrl.substring(7);
+    displayEmail = mailtoUrl; // Use clean version for display
   }
 
-  // Now add the prefix properly
+  // Now add the prefix properly for the URL
   mailtoUrl = `mailto:${mailtoUrl}`;
 
   const element = (
     <a
       href={mailtoUrl}
-      className="inline-flex items-center rounded-md py-1 px-2 bg-indigo-50 dark:bg-indigo-900/30 text-amber-600 dark:text-amber-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors cursor-pointer no-underline"
+      className="inline-flex items-center rounded-md py-1 px-2 bg-indigo-50 dark:bg-indigo-900/30 text-amber-600 dark:text-amber-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors cursor-pointer no-underline break-all"
     >
       <Mail size={14} className="mr-1.5 flex-shrink-0" />
-      <span>{email}</span>
+      <span>{displayEmail}</span>
     </a>
   );
 
