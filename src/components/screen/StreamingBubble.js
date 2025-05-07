@@ -56,10 +56,11 @@ export default function StreamingBubble({ message }) {
   // Update the displayed content when the message changes
   useEffect(() => {
     let content = "";
+    console.log("StreamingBubble received content:", message.content);
     if (typeof message.content === "string") {
-      content = message.content;
+      setCurrentContent(message.content);
     } else if (message.content && typeof message.content.text === "string") {
-      content = message.content.text;
+      setCurrentContent(message.content.text);
     }
 
     if (content !== currentContent) {

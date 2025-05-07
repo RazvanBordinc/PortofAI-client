@@ -519,6 +519,8 @@ export default function ChatInterface() {
                 setIsLoading(false);
               }
             } else if (eventName === "message") {
+              console.log("dataContent from sendmessage to api", dataContent);
+
               // Regular message event - unescape special characters
               const textChunk = dataContent
                 .replace(/\\n/g, "\n")
