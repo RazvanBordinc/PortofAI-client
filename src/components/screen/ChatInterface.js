@@ -405,6 +405,7 @@ export default function ChatInterface() {
     let reader = null;
     let response = null;
     let timeoutId = null;
+    let isContactForm = false;
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189";
@@ -413,7 +414,7 @@ export default function ChatInterface() {
       const controller = new AbortController();
       timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      debugLog(`Sending message to API with style: ${selectedStyle}`);
+      console.log(`Sending message to API with style: ${selectedStyle}`);
 
       // Start the streaming request
       response = await fetch(`${apiUrl}/api/chat/stream`, {
@@ -451,7 +452,7 @@ export default function ChatInterface() {
         done = readerDone;
 
         if (done) {
-          debugLog("Stream completed");
+          console.log("Stream completed");
           setIsAiTyping(false);
           setIsLoading(false);
           break;
@@ -459,7 +460,7 @@ export default function ChatInterface() {
 
         // Decode this chunk
         const chunk = decoder.decode(value, { stream: true });
-        debugLog("Received chunk:", chunk.length);
+        console.log("Received chunk length:", chunk.length);
 
         // Process SSE format
         const lines = chunk.split("\n\n");
@@ -470,7 +471,7 @@ export default function ChatInterface() {
           try {
             // Check if it's a heartbeat comment
             if (line.startsWith(":")) {
-              debugLog("Heartbeat received");
+              console.log("Heartbeat received");
               continue;
             }
 
@@ -483,14 +484,21 @@ export default function ChatInterface() {
             if (!dataMatch) continue;
 
             const dataContent = dataMatch[1];
+            console.log(
+              "Event:",
+              eventName,
+              "Data length:",
+              dataContent.length
+            );
 
             // Handle different event types
             if (eventName === "done") {
-              debugLog("Received done event");
+              console.log("Received done event, parsing completion data");
               try {
                 const completionData = JSON.parse(dataContent);
 
                 if (completionData.done) {
+                  console.log("Done event confirmed, updating message state");
                   // IMPORTANT: Don't update content again, just mark as done
                   setMessages((prev) => {
                     const updated = prev.map((msg) =>
@@ -519,23 +527,32 @@ export default function ChatInterface() {
                 setIsLoading(false);
               }
             } else if (eventName === "message") {
-              console.log("dataContent from sendmessage to api", dataContent);
-
               // Regular message event - unescape special characters
               const textChunk = dataContent
                 .replace(/\\n/g, "\n")
                 .replace(/\\r/g, "\r");
 
+              console.log(
+                "Message chunk received:",
+                textChunk.substring(0, 30) + "..."
+              );
+
               // Add to accumulated text
               accumulatedText += textChunk;
 
-              // Update the message with the accumulated text
-              if (
+              // Check for contact information patterns
+              const containsContactInfo =
                 textChunk.includes("contact") ||
                 textChunk.includes("Email:") ||
                 textChunk.includes("GitHub:") ||
-                accumulatedText.includes("bordincrazvan2004@gmail.com")
-              ) {
+                textChunk.includes("LinkedIn:") ||
+                textChunk.includes("razvan.bordinc@yahoo.com") ||
+                accumulatedText.includes("razvan.bordinc@yahoo.com");
+
+              if (containsContactInfo && !isContactForm) {
+                console.log("Contact form detected, updating format");
+                isContactForm = true;
+
                 // Force format to contact form
                 setMessages((prev) =>
                   prev.map((msg) =>
@@ -547,7 +564,37 @@ export default function ChatInterface() {
                             format: "contact",
                             data: createDefaultContactData(),
                           },
+                          isStreaming: true,
                         }
+                      : msg
+                  )
+                );
+              } else {
+                // CRITICAL FIX: Always update messages - this was missing!
+                console.log(
+                  "Updating message with new content, length:",
+                  accumulatedText.length
+                );
+
+                // Regular text update - must happen for all messages
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === streamingMessageId
+                      ? isContactForm
+                        ? {
+                            ...msg,
+                            content: {
+                              text: accumulatedText,
+                              format: "contact",
+                              data: createDefaultContactData(),
+                            },
+                            isStreaming: true,
+                          }
+                        : {
+                            ...msg,
+                            content: accumulatedText,
+                            isStreaming: true,
+                          }
                       : msg
                   )
                 );

@@ -1,16 +1,17 @@
 import React, { useEffect, useState, useCallback } from "react";
 import ChatBubble from "./ChatBubble";
-import StreamingBubble from "./StreamingBubble"; // Component for streaming text
-import { enhanceMessage } from "../../lib/utils/urlDetector"; // Import the helper function
-// Debug logging utility - reduce console spam
-const DEBUG = false;
+import StreamingBubble from "./StreamingBubble";
+import { enhanceMessage } from "../../lib/utils/urlDetector";
+
+// Set to true to enable verbose debugging
+const DEBUG = true;
 const debugLog = (...args) => {
   if (DEBUG) {
     console.log(...args);
   }
 };
 
-// Define helper functions outside the component to avoid scope issues
+// Helper function for cleaning JSON strings
 const cleanJsonString = (jsonStr) => {
   if (!jsonStr) return jsonStr;
 
@@ -33,31 +34,84 @@ export default function ChatMessage({ message }) {
   const [processedMessage, setProcessedMessage] = useState(null);
   const [parseError, setParseError] = useState(null);
 
-  // Wrap in useCallback to prevent infinite re-renders
+  debugLog(
+    "ChatMessage rendering with ID:",
+    message.id,
+    "isStreaming:",
+    message.isStreaming,
+    "contentType:",
+    typeof message.content,
+    "sender:",
+    message.sender
+  );
+
+  // Process the message content
   const processMessage = useCallback((originalMessage) => {
+    debugLog("Begin processing message:", originalMessage.id);
+
     // Create a copy to avoid modifying the original
     let processedMsg = { ...originalMessage };
 
-    // Log for debugging (can be removed in production)
-    debugLog("ChatMessage processing:", originalMessage);
-
     try {
-      // Check if this is a streaming message
+      // CRITICAL CHECK: Handle streaming messages immediately
       if (originalMessage.isStreaming) {
-        // Just pass through streaming messages to the StreamingBubble component
+        debugLog("Message is streaming, passing through directly");
+        setProcessedMessage(processedMsg);
+        return;
+      }
+
+      // Check for contact information - shortcut processing for contact data
+      if (
+        typeof originalMessage.content === "string" &&
+        (originalMessage.content.includes("Email:") ||
+          originalMessage.content.includes("razvan.bordinc@yahoo.com"))
+      ) {
+        debugLog("Detected contact information pattern");
+        // Create contact format message
+        processedMsg.content = {
+          text: originalMessage.content,
+          format: "contact",
+          data: {
+            title: "Contact Form",
+            recipientName: "Razvan Bordinc",
+            recipientPosition: "Software Engineer",
+            emailSubject: "Contact from Portfolio Website",
+            socialLinks: [
+              {
+                platform: "LinkedIn",
+                url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
+                icon: "linkedin",
+              },
+              {
+                platform: "GitHub",
+                url: "https://github.com/RazvanBordinc",
+                icon: "github",
+              },
+              {
+                platform: "Email",
+                url: "razvan.bordinc@yahoo.com",
+                icon: "mail",
+              },
+            ],
+          },
+        };
+        processedMsg.isStreaming = false;
         setProcessedMessage(processedMsg);
         return;
       }
 
       // Enhance the message to handle URLs and emails
+      debugLog("Enhancing message with URL and email detection");
       processedMsg = enhanceMessage(processedMsg);
 
-      // Extract content properly
+      // Extract content based on format
       if (
         typeof processedMsg.content === "object" &&
         processedMsg.content !== null
       ) {
-        // It's already an object, but we need to make sure it has the right structure
+        debugLog("Processing object content:", processedMsg.content);
+
+        // It's already an object, ensure it has the right structure
         let content = {
           text: processedMsg.content.text || "",
           format: processedMsg.content.format || "text",
@@ -67,12 +121,18 @@ export default function ChatMessage({ message }) {
         // Convert to the expected format
         processedMsg.content = content;
       } else if (typeof processedMsg.content === "string") {
+        debugLog(
+          "Processing string content, length:",
+          processedMsg.content.length
+        );
+
         // Extract format type from text if present
         const formatMatch = processedMsg.content.match(
           /\[format:(text|contact)\]/i
         );
 
         const format = formatMatch ? formatMatch[1].toLowerCase() : "text";
+        debugLog("Detected format:", format);
 
         // Extract data from text if present
         const dataMatch = processedMsg.content.match(/\[data:([\s\S]*?)\]/);
@@ -80,12 +140,48 @@ export default function ChatMessage({ message }) {
 
         if (dataMatch) {
           try {
+            debugLog("Found data section, attempting to parse");
             const jsonStr = dataMatch[1].trim();
             data = JSON.parse(cleanJsonString(jsonStr));
+            debugLog("Successfully parsed JSON data");
           } catch (error) {
             console.error("JSON parsing error in content:", error);
-            // Create fallback data
-            data = { error: "Could not parse JSON data: " + error.message };
+            debugLog("JSON parsing failed:", error.message);
+
+            // Special handling for contact data parsing errors
+            if (
+              format === "contact" ||
+              processedMsg.content.includes("Email:") ||
+              processedMsg.content.includes("razvan.bordinc@yahoo.com")
+            ) {
+              debugLog("Creating default contact data after parse failure");
+              data = {
+                title: "Contact Form",
+                recipientName: "Razvan Bordinc",
+                recipientPosition: "Software Engineer",
+                emailSubject: "Contact from Portfolio Website",
+                socialLinks: [
+                  {
+                    platform: "LinkedIn",
+                    url: "https://linkedin.com/in/valentin-r%C4%83zvan-bord%C3%AEnc-30686a298/",
+                    icon: "linkedin",
+                  },
+                  {
+                    platform: "GitHub",
+                    url: "https://github.com/RazvanBordinc",
+                    icon: "github",
+                  },
+                  {
+                    platform: "Email",
+                    url: "razvan.bordinc@yahoo.com",
+                    icon: "mail",
+                  },
+                ],
+              };
+            } else {
+              // For other formats
+              data = { error: "Could not parse JSON data: " + error.message };
+            }
           }
         }
 
@@ -104,8 +200,21 @@ export default function ChatMessage({ message }) {
           format: format,
           data: data,
         };
+
+        debugLog(
+          "Processed text content:",
+          "format:",
+          format,
+          "cleanedTextLength:",
+          cleanedText.length,
+          "hasData:",
+          data !== null
+        );
       } else {
         // For other cases, default to text format
+        debugLog(
+          "Content is neither object nor string, using default text format"
+        );
         processedMsg.content = {
           text: String(processedMsg.content || ""),
           format: "text",
@@ -115,11 +224,12 @@ export default function ChatMessage({ message }) {
 
       // Important: Make sure isStreaming is explicitly set to false for completed messages
       processedMsg.isStreaming = false;
-
+      debugLog("Message processing complete:", processedMsg.id);
       setProcessedMessage(processedMsg);
     } catch (error) {
       console.error("Error in processMessage:", error);
       setParseError(error.message);
+      debugLog("Error during processing:", error.message);
 
       // Keep original message as fallback but make sure isStreaming is correct
       if (processedMsg) {
@@ -130,7 +240,7 @@ export default function ChatMessage({ message }) {
         setProcessedMessage({
           id: originalMessage.id || Date.now(),
           content: {
-            text: "Error processing message",
+            text: "Error processing message: " + error.message,
             format: "text",
             data: null,
           },
@@ -142,12 +252,26 @@ export default function ChatMessage({ message }) {
       }
     }
   }, []);
+
   // Process the message when it changes
   useEffect(() => {
     if (message) {
       processMessage(message);
     }
   }, [message, processMessage]);
+
+  // Render debugging
+  debugLog(
+    "Rendering decision for message ID:",
+    message.id,
+    "processedMessage:",
+    processedMessage ? "exists" : "null",
+    "isStreaming:",
+    processedMessage?.isStreaming,
+    "parseError:",
+    parseError ? "exists" : "null"
+  );
+
   // If message is still being processed
   if (!processedMessage) {
     return <div className="animate-pulse">Processing message...</div>;
@@ -155,11 +279,13 @@ export default function ChatMessage({ message }) {
 
   // If this is a streaming message, use the streaming component
   if (processedMessage.isStreaming) {
+    debugLog("Routing to StreamingBubble:", message.id);
     return <StreamingBubble message={processedMessage} />;
   }
 
   // If there's a parsing error, pass it along with the message
   if (parseError && processedMessage) {
+    debugLog("Message has parse error:", parseError);
     const msgWithError = {
       ...processedMessage,
       parseError,
@@ -167,5 +293,6 @@ export default function ChatMessage({ message }) {
     return <ChatBubble message={msgWithError} />;
   }
 
+  debugLog("Routing to regular ChatBubble:", message.id);
   return processedMessage ? <ChatBubble message={processedMessage} /> : null;
 }

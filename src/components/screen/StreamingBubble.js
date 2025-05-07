@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import LogoSvg from "../shared/LogoSvg";
 import TextFormatter from "./Format/TextFormatter";
@@ -10,6 +10,15 @@ export default function StreamingBubble({ message }) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [isStreaming, setIsStreaming] = useState(true);
   const [hasRichContent, setHasRichContent] = useState(false);
+  const contentRef = useRef("");
+
+  console.log(
+    "StreamingBubble rendering with:",
+    message.id,
+    message.isStreaming,
+    typeof message.content,
+    message.content
+  );
 
   // Helper function to clean response text - SIMPLIFIED
   const cleanResponseText = (text) => {
@@ -55,18 +64,35 @@ export default function StreamingBubble({ message }) {
 
   // Update the displayed content when the message changes
   useEffect(() => {
-    let content = "";
-    console.log("StreamingBubble received content:", message.content);
+    let newContent = "";
+    console.log("StreamingBubble content update triggered:", message.content);
+
+    // Extract the content properly based on its type
     if (typeof message.content === "string") {
-      setCurrentContent(message.content);
+      newContent = message.content;
+      console.log("Content is string:", newContent.substring(0, 30) + "...");
     } else if (message.content && typeof message.content.text === "string") {
-      setCurrentContent(message.content.text);
+      newContent = message.content.text;
+      console.log(
+        "Content is object with text:",
+        newContent.substring(0, 30) + "..."
+      );
+    } else if (message.content) {
+      // Try to get string representation
+      newContent = String(message.content);
+      console.log(
+        "Content converted to string:",
+        newContent.substring(0, 30) + "..."
+      );
     }
 
-    if (content !== currentContent) {
+    // Only update if content actually changed
+    if (newContent !== contentRef.current) {
+      console.log("Content changed, updating state");
+      contentRef.current = newContent;
+      setCurrentContent(newContent);
+      checkForRichContent(newContent);
       setIsAnimating(true);
-      setCurrentContent(content);
-      checkForRichContent(content);
 
       const timeout = setTimeout(() => {
         setIsAnimating(false);
@@ -74,16 +100,19 @@ export default function StreamingBubble({ message }) {
 
       return () => clearTimeout(timeout);
     }
-  }, [message.content, currentContent]);
+  }, [message.content]);
 
   // Detect when streaming has stopped
   useEffect(() => {
+    console.log("Streaming status check:", message.isStreaming, isStreaming);
     if (message.isStreaming === false && isStreaming === true) {
+      console.log("Streaming ended, cleaning content");
       setIsStreaming(false);
       setCursorVisible(false);
 
       const finalCleaned = cleanResponseText(currentContent);
       if (finalCleaned !== currentContent) {
+        console.log("Cleaned content after streaming");
         setCurrentContent(finalCleaned);
       }
     }
@@ -131,6 +160,10 @@ export default function StreamingBubble({ message }) {
 
   return (
     <div className="flex justify-start">
+      {console.log(
+        "Rendering content:",
+        currentContent.substring(0, 30) + "..."
+      )}
       {/* Avatar for AI - no animation */}
       <div className="self-end mb-2 mr-2">
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-500/10 dark:bg-indigo-600/20">
@@ -161,8 +194,12 @@ export default function StreamingBubble({ message }) {
             )}
           </AnimatePresence>
 
-          {/* Format the text with proper styling - use TextFormatter for both streaming and final state */}
-          <TextFormatter text={currentContent} isAnimated={isStreaming} />
+          {/* Format the text with proper styling */}
+          {currentContent ? (
+            <TextFormatter text={currentContent} isAnimated={isStreaming} />
+          ) : (
+            <span className="text-slate-400">Loading...</span>
+          )}
 
           {/* Blinking cursor - only shown when streaming */}
           {isStreaming && (
