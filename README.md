@@ -6,10 +6,10 @@
 [![React](https://img.shields.io/badge/React-19.0.0-blue?style=flat-square&logo=react)](https://reactjs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![Framer Motion](https://img.shields.io/badge/Framer_Motion-12.7.4-purple?style=flat-square&logo=framer)](https://www.framer.com/motion/)
-[![Deployed on Render](https://img.shields.io/badge/Deployed_on-Render-46E3B7?style=flat-square&logo=render)](https://render.com/)
+[![Deployed on Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
 
-![PortofAI Banner](https://via.placeholder.com/1200x300?text=PortofAI:+AI+Portfolio+Chatbot)
+![PortofAI Banner](./public/banner.png)
 
 **An intelligent conversational interface to learn about me and my work in real-time, with data directly from GitHub.**
 
@@ -105,7 +105,7 @@ The application directly integrates with my GitHub repositories to ensure all in
   </tr>
   <tr>
     <td><b>Deployment</b></td>
-    <td>Render • Vercel (alternative)</td>
+    <td>Vercel</td>
   </tr>
 </table>
 </div>
