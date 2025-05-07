@@ -182,7 +182,10 @@ export default function ChatInterface() {
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
-      if (isFirstMessage) setIsModal2Open(true);
+      if (isFirstMessage) {
+        setIsModal2Open(true);
+        setIsFirstMessage(false);
+      }
       const response = await fetch(`${apiUrl}/api/remaining`, {
         signal: controller.signal,
         headers: {
@@ -315,7 +318,10 @@ export default function ChatInterface() {
       const controller = new AbortController();
       timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      if (isFirstMessage) setIsModal2Open(true);
+      if (isFirstMessage) {
+        setIsModal2Open(true);
+        setIsFirstMessage(false);
+      }
       // Start the streaming request
       response = await fetch(`${apiUrl}/api/chat/stream`, {
         method: "POST",
