@@ -38,8 +38,9 @@ export default function ChatInterface() {
 
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
+  const [isFirstMessage, setIsFirstMessage] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModal2Open, setIsModal2Open] = useState(false);
   const [isStyleMenuOpen, setIsStyleMenuOpen] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState("NORMAL");
   const [remaining, setRemaining] = useState(15);
@@ -181,7 +182,7 @@ export default function ChatInterface() {
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
-
+      if (isFirstMessage) setIsModal2Open(true);
       const response = await fetch(`${apiUrl}/api/remaining`, {
         signal: controller.signal,
         headers: {
@@ -205,160 +206,6 @@ export default function ChatInterface() {
       // Set a default remaining value on error
       setRemaining(15);
     }
-  };
-
-  // Fix truncated JSON by checking for balanced brackets and completing if necessary
-  const fixTruncatedJson = (jsonStr) => {
-    // Count opening and closing braces/brackets
-    const openBraces = (jsonStr.match(/{/g) || []).length;
-    const closeBraces = (jsonStr.match(/}/g) || []).length;
-    const openBrackets = (jsonStr.match(/\[/g) || []).length;
-    const closeBrackets = (jsonStr.match(/\]/g) || []).length;
-
-    // Check if the string contains recognizable contact form pattern
-    const isContactForm =
-      jsonStr.includes("Contact Form") &&
-      jsonStr.includes("socialLinks") &&
-      jsonStr.includes("platform");
-
-    // If brackets aren't balanced and it looks like a contact form
-    if (
-      isContactForm &&
-      (openBraces !== closeBraces || openBrackets !== closeBrackets)
-    ) {
-      debugLog("Detected unbalanced brackets in contact form JSON");
-
-      // Special case: If we see the specific truncation pattern (ends with github entry)
-      if (jsonStr.includes("GitHub") && !jsonStr.endsWith("]}")) {
-        debugLog("Detected truncated JSON after GitHub entry");
-
-        // Complete the JSON with missing closing brackets
-        let completed = jsonStr;
-
-        // If the last character isn't a closing brace, add one to close the GitHub object
-        if (!completed.trimEnd().endsWith("}")) {
-          completed += "}";
-        }
-
-        // Add closing bracket for the socialLinks array if needed
-        if (openBrackets > closeBrackets) {
-          completed += "]";
-        }
-
-        // Add closing brace for the main object if needed
-        if (openBraces > closeBraces) {
-          completed += "}";
-        }
-
-        debugLog("Completed JSON:", completed);
-        return completed;
-      }
-
-      // Generic fix: Add missing closing brackets and braces
-      let completed = jsonStr;
-
-      // Add missing closing brackets
-      for (let i = 0; i < openBrackets - closeBrackets; i++) {
-        completed += "]";
-      }
-
-      // Add missing closing braces
-      for (let i = 0; i < openBraces - closeBraces; i++) {
-        completed += "}";
-      }
-
-      debugLog("Generically completed JSON:", completed);
-      return completed;
-    }
-
-    return jsonStr;
-  };
-
-  // Clean up a JSON string
-  const cleanJsonString = (jsonStr) => {
-    if (!jsonStr) return jsonStr;
-
-    // Replace JavaScript-style property names (without quotes) with JSON-style (with quotes)
-    let cleaned = jsonStr.replace(/([{,])\s*([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
-
-    // Replace single quotes with double quotes (handling escaped quotes)
-    cleaned = cleaned
-      .replace(/\\'/g, "\\TEMP_QUOTE") // Temporarily replace escaped single quotes
-      .replace(/'/g, '"') // Replace all single quotes with double quotes
-      .replace(/\\TEMP_QUOTE/g, "\\'"); // Restore escaped single quotes
-
-    // Remove trailing commas in objects and arrays
-    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*\]/g, "]");
-
-    // Remove any unescaped newlines inside strings
-    cleaned = cleaned.replace(/([^\\])"([^"]*)\n([^"]*)"/g, '$1"$2 $3"');
-
-    // Remove any control characters
-    cleaned = cleaned.replace(/[\x00-\x1F]/g, " ");
-
-    return cleaned;
-  };
-
-  // Enhanced processCompletedResponse function
-  const processCompletedResponse = (fullText) => {
-    // Apply the text cleaning first to fix any formatting issues
-    fullText = cleanResponseText(fullText);
-
-    // Check for format tags in the text
-    let format = "text"; // Default format
-    const formatMatch = fullText.match(/\[format:(text|contact)\]/i);
-    if (formatMatch) {
-      format = formatMatch[1].toLowerCase();
-    }
-
-    // Extract data if present
-    let formatData = null;
-    const dataMatch = fullText.match(/\[data:([\s\S]*?)\]/s);
-
-    if (dataMatch && dataMatch[1]) {
-      try {
-        // Clean and parse the JSON data
-        let jsonString = dataMatch[1].trim();
-        jsonString = fixTruncatedOrMalformedJson(jsonString);
-
-        try {
-          formatData = JSON.parse(jsonString);
-        } catch (error) {
-          console.error("Error parsing JSON data:", error);
-          formatData = { error: `Could not parse JSON data: ${error.message}` };
-
-          // For contact form, use default data
-          if (format === "contact") {
-            console.log("here", 33);
-            formatData = createDefaultContactData();
-          }
-        }
-      } catch (error) {
-        console.error("Error processing data tag:", error);
-      }
-    } else if (format === "contact") {
-      console.log("here", 44);
-      // Default contact data if format is contact but no data is found
-      formatData = createDefaultContactData();
-    }
-
-    // Clean the response text
-    let cleanedText = fullText
-      .replace(/\[format:(text|contact)\]/gi, "")
-      .replace(/\[\/format\]/gi, "");
-
-    if (dataMatch) {
-      cleanedText = cleanedText.replace(/\[data:[\s\S]*?\]/s, "");
-    }
-
-    // Process URLs and email addresses in the text
-    cleanedText = processUrlsAndEmails(cleanedText);
-
-    return {
-      text: cleanedText.trim(),
-      format,
-      data: formatData,
-    };
   };
 
   // Handle AI response
@@ -468,8 +315,7 @@ export default function ChatInterface() {
       const controller = new AbortController();
       timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      console.log(`Sending message to API with style: ${selectedStyle}`);
-
+      if (isFirstMessage) setIsModal2Open(true);
       // Start the streaming request
       response = await fetch(`${apiUrl}/api/chat/stream`, {
         method: "POST",
@@ -848,7 +694,17 @@ export default function ChatInterface() {
           free tier limits.
         </p>
       </Modal>
-
+      {/* Delayed Response Modal */}
+      <Modal
+        isOpen={isModal2Open}
+        onClose={() => setIsModal2Open(false)}
+        title="Delayed Response"
+      >
+        <p>
+          First message may take 30-60 seconds to process due to using free tier
+          of Render
+        </p>
+      </Modal>
       {/* Chat History Sidebar */}
       <ChatHistorySidebar
         isOpen={isHistorySidebarOpen}

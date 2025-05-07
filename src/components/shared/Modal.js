@@ -96,7 +96,7 @@ export default function Modal({
               </div>
               <button
                 onClick={onClose}
-                className={`p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 
+                className={`p-1 rounded-full cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 
                   transition-colors
                   ${
                     isError
@@ -131,7 +131,7 @@ export default function Modal({
               <button
                 type="button"
                 onClick={onClose}
-                className={`py-2 px-4 rounded-md font-medium text-sm
+                className={`py-2 px-4 cursor-pointer rounded-md font-medium text-sm
                   ${
                     isError
                       ? "bg-red-500 hover:bg-red-600 text-white dark:bg-red-700 dark:hover:bg-red-600"
