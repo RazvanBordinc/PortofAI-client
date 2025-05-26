@@ -11,10 +11,15 @@ export default function BackendLoadingScreen({ onBackendReady, apiUrl }) {
   useEffect(() => {
     const checkBackendHealth = async () => {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
         const response = await fetch(`${apiUrl}/api/health`, {
           method: "GET",
-          signal: AbortSignal.timeout(5000), // 5 second timeout
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
           setIsChecking(false);
@@ -23,6 +28,13 @@ export default function BackendLoadingScreen({ onBackendReady, apiUrl }) {
           throw new Error("Backend not ready");
         }
       } catch (error) {
+        // Don't retry on SSL/network errors, just proceed
+        if (error.name === 'TypeError' || error.message.includes('ERR_CERT')) {
+          setIsChecking(false);
+          onBackendReady();
+          return;
+        }
+        
         setAttempts(prev => prev + 1);
         if (attempts < maxAttempts) {
           setTimeout(checkBackendHealth, 5000); // Retry every 5 seconds

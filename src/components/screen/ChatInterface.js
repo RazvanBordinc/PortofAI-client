@@ -42,6 +42,7 @@ export default function ChatInterface() {
   const [isFirstMessage, setIsFirstMessage] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBackendReady, setIsBackendReady] = useState(false);
+  const [showBackendCheck, setShowBackendCheck] = useState(false);
   const [isStyleMenuOpen, setIsStyleMenuOpen] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState("NORMAL");
   const [remaining, setRemaining] = useState(15);
@@ -237,6 +238,13 @@ export default function ChatInterface() {
     // Don't proceed if already busy
     if (isAiTyping || isLoading || remaining <= 0) {
       debugLog("Cannot process suggestion - busy or rate limited");
+      return;
+    }
+
+    // Show backend check on first message
+    if (isFirstMessage && !isBackendReady) {
+      setNewMessage(text); // Set the message so it can be sent after backend is ready
+      setShowBackendCheck(true);
       return;
     }
 
@@ -595,6 +603,12 @@ export default function ChatInterface() {
     e?.preventDefault(); // Make preventDefault optional for suggestion clicks
     if (!newMessage.trim() || isLoading || isAiTyping || remaining <= 0) return;
 
+    // Show backend check on first message
+    if (isFirstMessage && !isBackendReady) {
+      setShowBackendCheck(true);
+      return;
+    }
+
     // Add user message to chat
     const userMessage = {
       id: Date.now(),
@@ -700,10 +714,15 @@ export default function ChatInterface() {
         </p>
       </Modal>
       {/* Backend Loading Screen */}
-      {isFirstMessage && !isBackendReady && (
+      {showBackendCheck && !isBackendReady && (
         <BackendLoadingScreen
           apiUrl={process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189"}
-          onBackendReady={() => setIsBackendReady(true)}
+          onBackendReady={() => {
+            setIsBackendReady(true);
+            setShowBackendCheck(false);
+            // Retry sending the message after backend is ready
+            handleSendMessage();
+          }}
         />
       )}
       {/* Chat History Sidebar */}
