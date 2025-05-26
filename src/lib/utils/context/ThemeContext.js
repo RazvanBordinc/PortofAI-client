@@ -8,9 +8,11 @@ const ThemeContext = createContext();
 export function ThemeProvider({ children }) {
   const [darkMode, setDarkMode] = useState(true);
 
-  // Set initial theme based on user preference
+  // Set initial theme based on user preference, default to dark
   useEffect(() => {
-    const isDarkMode = localStorage.getItem("darkMode") === "true";
+    const savedTheme = localStorage.getItem("darkMode");
+    // Default to dark mode if no preference is saved
+    const isDarkMode = savedTheme !== null ? savedTheme === "true" : true;
     setDarkMode(isDarkMode);
 
     if (isDarkMode) {

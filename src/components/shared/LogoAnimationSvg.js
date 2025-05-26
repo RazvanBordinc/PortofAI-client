@@ -85,8 +85,8 @@ export default function LogoAnimationSvg() {
   if (!mounted) {
     // Return a simple placeholder until client-side rendering takes over
     return (
-      <div className="relative w-40 h-40 flex items-center justify-center">
-        <div className="w-28 h-28">
+      <div className="relative w-28 h-28 sm:w-40 sm:h-40 flex items-center justify-center">
+        <div className="w-20 h-20 sm:w-28 sm:h-28">
           <LogoSvg className="w-full h-full" />
         </div>
       </div>
@@ -94,14 +94,14 @@ export default function LogoAnimationSvg() {
   }
 
   return (
-    <div className="relative w-40 h-40 flex items-center justify-center">
+    <div className="relative w-28 h-28 sm:w-40 sm:h-40 flex items-center justify-center">
       {/* Static background glow */}
-      <div className="absolute w-32 h-32 bg-gradient-to-br from-amber-400/20 to-orange-500/20 dark:from-amber-500/20 dark:to-orange-600/20 rounded-full blur-xl"></div>
+      <div className="absolute w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-amber-400/20 to-orange-500/20 dark:from-amber-500/20 dark:to-orange-600/20 rounded-full blur-xl"></div>
 
       {/* Animated background glow */}
       {mounted && (
         <motion.div
-          className="absolute w-32 h-32 bg-gradient-to-br from-amber-400/20 to-orange-500/20 dark:from-amber-500/20 dark:to-orange-600/20 rounded-full blur-xl"
+          className="absolute w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-amber-400/20 to-orange-500/20 dark:from-amber-500/20 dark:to-orange-600/20 rounded-full blur-xl"
           animate={{
             scale: [1, 1.1, 1],
             opacity: [0.5, 0.7, 0.5],

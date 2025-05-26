@@ -28,6 +28,7 @@ import Modal from "../shared/Modal";
 import RemainingRequests from "./RemainingRequests";
 import ChatHistorySidebar from "../shared/ChatHistorySidebar";
 import useConversationHistory from "@/lib/utils/hooks/useConversationHistory";
+import BackendLoadingScreen from "../shared/BackendLoadingScreen";
 
 const DEBUG = false;
 
@@ -40,7 +41,7 @@ export default function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFirstMessage, setIsFirstMessage] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isModal2Open, setIsModal2Open] = useState(false);
+  const [isBackendReady, setIsBackendReady] = useState(false);
   const [isStyleMenuOpen, setIsStyleMenuOpen] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState("NORMAL");
   const [remaining, setRemaining] = useState(15);
@@ -183,7 +184,6 @@ export default function ChatInterface() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
       if (isFirstMessage) {
-        setIsModal2Open(true);
         setIsFirstMessage(false);
       }
       const response = await fetch(`${apiUrl}/api/remaining`, {
@@ -319,7 +319,6 @@ export default function ChatInterface() {
       timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       if (isFirstMessage) {
-        setIsModal2Open(true);
         setIsFirstMessage(false);
       }
       // Start the streaming request
@@ -700,17 +699,13 @@ export default function ChatInterface() {
           free tier limits.
         </p>
       </Modal>
-      {/* Delayed Response Modal */}
-      <Modal
-        isOpen={isModal2Open}
-        onClose={() => setIsModal2Open(false)}
-        title="Delayed Response"
-      >
-        <p>
-          First message may take 30-60 seconds to process due to using free tier
-          of Render
-        </p>
-      </Modal>
+      {/* Backend Loading Screen */}
+      {isFirstMessage && !isBackendReady && (
+        <BackendLoadingScreen
+          apiUrl={process.env.NEXT_PUBLIC_API_URL || "http://localhost:5189"}
+          onBackendReady={() => setIsBackendReady(true)}
+        />
+      )}
       {/* Chat History Sidebar */}
       <ChatHistorySidebar
         isOpen={isHistorySidebarOpen}
