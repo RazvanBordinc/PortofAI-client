@@ -29,7 +29,8 @@ export default function BackendLoadingScreen({ onBackendReady, apiUrl }) {
         }
       } catch (error) {
         // Don't retry on SSL/network errors, just proceed
-        if (error.name === 'TypeError' || error.message.includes('ERR_CERT')) {
+        if (error.name === 'TypeError' || error.message.includes('ERR_CERT') || error.message.includes('Failed to fetch')) {
+          console.warn('Backend health check failed, proceeding anyway:', error.message);
           setIsChecking(false);
           onBackendReady();
           return;
