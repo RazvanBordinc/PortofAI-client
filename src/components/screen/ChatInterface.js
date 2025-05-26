@@ -29,7 +29,6 @@ import RemainingRequests from "./RemainingRequests";
 import ChatHistorySidebar from "../shared/ChatHistorySidebar";
 import useConversationHistory from "@/lib/utils/hooks/useConversationHistory";
 import BackendLoadingScreen from "../shared/BackendLoadingScreen";
-import ConnectionWarning from "../shared/ConnectionWarning";
 
 const DEBUG = false;
 
@@ -44,7 +43,6 @@ export default function ChatInterface() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBackendReady, setIsBackendReady] = useState(false);
   const [showBackendCheck, setShowBackendCheck] = useState(false);
-  const [showConnectionWarning, setShowConnectionWarning] = useState(false);
   const [isStyleMenuOpen, setIsStyleMenuOpen] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState("NORMAL");
   const [remaining, setRemaining] = useState(15);
@@ -196,26 +194,13 @@ export default function ChatInterface() {
           "Content-Type": "application/json",
         },
         credentials: "include",
-      }).catch((error) => {
-        // Handle network/SSL errors silently
-        console.warn("Network error fetching remaining requests:", error.message);
-        return { ok: false, networkError: true };
       });
 
       clearTimeout(timeoutId);
 
-      // Handle network errors silently
-      if (response?.networkError) {
-        setRemaining(15); // Default value
-        setShowConnectionWarning(true);
-        return;
-      }
-
-      if (!response?.ok) {
-        console.warn(`Error response: ${response?.status}`);
-        setRemaining(15); // Default value
-        setShowConnectionWarning(true);
-        return;
+      if (!response.ok) {
+        console.error(`Error response: ${response.status}`);
+        throw new Error(`Error: ${response.status}`);
       }
 
       const data = await response.json();
@@ -356,10 +341,6 @@ export default function ChatInterface() {
           message: userMessage.content,
           style: selectedStyle,
         }),
-      }).catch((error) => {
-        // Handle network/SSL errors
-        console.error("Network error during chat request:", error);
-        throw new Error("Unable to connect to the server. Please check your internet connection.");
       });
 
       // Check for errors in the response
@@ -571,8 +552,6 @@ export default function ChatInterface() {
                       ? "The request took too long to complete. Please try again later."
                       : error.message && error.message.includes("503")
                       ? "The AI service is temporarily unavailable. Please try again in a few moments."
-                      : error.message && error.message.includes("Unable to connect")
-                      ? "Unable to connect to the server. The backend might be starting up. Please try again in a moment."
                       : "Sorry, there was an error processing your request. Please try again later.",
                   format: "text",
                 },
@@ -680,12 +659,6 @@ export default function ChatInterface() {
     <div className="h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 relative">
       {/* Header */}
       <ChatHeader onHistoryClick={handleHistoryClick} />
-
-      {/* Connection Warning */}
-      <ConnectionWarning 
-        isVisible={showConnectionWarning} 
-        onDismiss={() => setShowConnectionWarning(false)} 
-      />
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-4 mt-16">
