@@ -40,12 +40,27 @@ export function useConversationHistory() {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
+      }).catch((error) => {
+        // If it's a network/SSL error, return from cache
+        console.warn("Network error fetching history, using cache:", error.message);
+        const cachedData = loadFromCache();
+        if (cachedData) {
+          setHistory(cachedData);
+          setIsLoading(false);
+          return { ok: false, networkError: true };
+        }
+        throw error;
       });
 
       clearTimeout(timeoutId);
 
+      // Handle network errors
+      if (response?.networkError) {
+        return history; // Return existing history from state
+      }
+
       // Handle 404 (no history) as valid but empty
-      if (response.status === 404) {
+      if (response?.status === 404) {
         setHistory([]);
         saveToCache([]);
         setIsLoading(false);
@@ -127,12 +142,23 @@ export function useConversationHistory() {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
+      }).catch((error) => {
+        // Handle network/SSL errors - still clear local cache
+        console.warn("Network error clearing history, clearing local cache:", error.message);
+        setHistory([]);
+        clearCache();
+        return { ok: true, networkError: true };
       });
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        throw new Error(`Error clearing history: ${response.status}`);
+      // If network error, we already cleared local cache
+      if (response?.networkError) {
+        return true;
+      }
+
+      if (!response?.ok) {
+        throw new Error(`Error clearing history: ${response?.status}`);
       }
 
       // Clear local state and cache

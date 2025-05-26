@@ -194,19 +194,30 @@ export default function ChatInterface() {
           "Content-Type": "application/json",
         },
         credentials: "include",
+      }).catch((error) => {
+        // Handle network/SSL errors silently
+        console.warn("Network error fetching remaining requests:", error.message);
+        return { ok: false, networkError: true };
       });
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        console.error(`Error response: ${response.status}`);
-        throw new Error(`Error: ${response.status}`);
+      // Handle network errors silently
+      if (response?.networkError) {
+        setRemaining(15); // Default value
+        return;
+      }
+
+      if (!response?.ok) {
+        console.warn(`Error response: ${response?.status}`);
+        setRemaining(15); // Default value
+        return;
       }
 
       const data = await response.json();
       setRemaining(data.remaining);
     } catch (error) {
-      console.error("Error fetching remaining requests:", error);
+      console.warn("Error fetching remaining requests:", error.message);
       // Set a default remaining value on error
       setRemaining(15);
     }
@@ -341,6 +352,10 @@ export default function ChatInterface() {
           message: userMessage.content,
           style: selectedStyle,
         }),
+      }).catch((error) => {
+        // Handle network/SSL errors
+        console.error("Network error during chat request:", error);
+        throw new Error("Unable to connect to the server. Please check your internet connection.");
       });
 
       // Check for errors in the response
@@ -552,6 +567,8 @@ export default function ChatInterface() {
                       ? "The request took too long to complete. Please try again later."
                       : error.message && error.message.includes("503")
                       ? "The AI service is temporarily unavailable. Please try again in a few moments."
+                      : error.message && error.message.includes("Unable to connect")
+                      ? "Unable to connect to the server. The backend might be starting up. Please try again in a moment."
                       : "Sorry, there was an error processing your request. Please try again later.",
                   format: "text",
                 },
