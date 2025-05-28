@@ -51,7 +51,6 @@ export default function ChatSuggestion({ onSelectSuggestion, distance }) {
 
   // Handle suggestion click - directly call parent handler
   const handleSuggestionClick = (text) => {
-    console.log("ChatSuggestion: Suggestion clicked:", text);
     // FIXED: This directly calls the parent handler instead of just setting input value
     onSelectSuggestion(text);
   };

@@ -87,7 +87,6 @@ export const fixTruncatedOrMalformedJson = (jsonStr) => {
   try {
     // Check if it looks like a contact form with Email but not formatted as JSON
     if (jsonStr.includes("Email:") && !jsonStr.includes('"Email":')) {
-      console.log("Detected non-JSON contact format, creating default form");
       return JSON.stringify(createDefaultContactData());
     }
 
@@ -123,11 +122,9 @@ export const fixTruncatedOrMalformedJson = (jsonStr) => {
       const parsed = JSON.parse(cleaned);
       return JSON.stringify(parsed); // Re-stringify to ensure valid JSON
     } catch (error) {
-      console.log("JSON parsing failed, using default data");
       return JSON.stringify(createDefaultContactData());
     }
   } catch (error) {
-    console.log("Error in fixTruncatedOrMalformedJson, using default data");
     return JSON.stringify(createDefaultContactData());
   }
 };
@@ -214,11 +211,9 @@ export const processCompletedResponse = (fullText) => {
       try {
         formatData = JSON.parse(jsonString);
       } catch (error) {
-        console.error("Error parsing JSON data:", error);
         formatData = createDefaultContactData();
       }
     } catch (error) {
-      console.error("Error processing data tag:", error);
     }
   } else if (format === "contact") {
     formatData = createDefaultContactData();

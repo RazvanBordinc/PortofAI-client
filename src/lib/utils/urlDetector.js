@@ -140,7 +140,6 @@ export const enhanceMessage = (message) => {
 
     return enhancedMessage;
   } catch (error) {
-    console.error("Error enhancing message:", error);
     // Return the original message if enhancement fails
     return message;
   }

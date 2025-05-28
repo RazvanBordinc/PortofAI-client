@@ -226,7 +226,6 @@ export default function FormatMessage({ message }) {
                 extractedData = JSON.parse(jsonStr);
                 debugLog("Successfully extracted JSON data");
               } catch (parseError) {
-                console.error("JSON parsing error after cleaning:", parseError);
 
                 // Use default form data as fallback
                 if (formatType === "contact") {
@@ -239,7 +238,6 @@ export default function FormatMessage({ message }) {
 
               cleanedText = cleanedText.replace(dataMatch[0], "");
             } catch (error) {
-              console.error("Error handling JSON data:", error);
               extractedData = createFallbackData(formatType);
               cleanedText = cleanedText.replace(dataMatch[0], "");
             }
@@ -262,7 +260,6 @@ export default function FormatMessage({ message }) {
             formatType,
           };
         } catch (error) {
-          console.error("Error in extractFormatAndData:", error);
           return {
             cleanedText: text,
             extractedData: createFallbackData("text"),
@@ -328,7 +325,6 @@ export default function FormatMessage({ message }) {
         }
 
         // If no text property, try to convert whole object to string
-        console.warn("Message object has no text property:", originalMessage);
         processed.text = "Message format error";
         processed.format = originalMessage.format || "text";
         processed.data = originalMessage.data || null;
@@ -336,11 +332,9 @@ export default function FormatMessage({ message }) {
       }
 
       // Fallback for unexpected input
-      console.error("Unexpected message format:", originalMessage);
       processed.text = "Error: Unprocessable message format";
       return setProcessedMessage(processed);
     } catch (error) {
-      console.error("Error processing message:", error);
       setParseError(error.message);
 
       // Still set a basic processed message with the error
@@ -383,7 +377,6 @@ export default function FormatMessage({ message }) {
           return null;
       }
     } catch (error) {
-      console.error("Error rendering format component:", error);
       return (
         <div className="mt-2 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md">
           <p className="font-medium">

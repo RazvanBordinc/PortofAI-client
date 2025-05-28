@@ -40,7 +40,6 @@ export function extractFormatAndData(text) {
     if (dataMatch && dataMatch[1]) {
       try {
         let jsonStr = dataMatch[1].trim();
-        console.log("Raw JSON data found");
 
         // Clean up common JSON errors
         jsonStr = cleanJsonString(jsonStr);
@@ -48,9 +47,7 @@ export function extractFormatAndData(text) {
         // Parse JSON
         extractedData = JSON.parse(jsonStr);
         cleanedText = cleanedText.replace(dataMatch[0], "");
-        console.log("Successfully extracted and parsed JSON data");
       } catch (error) {
-        console.error("JSON parsing error:", error);
         extractedData = {
           error: "Could not parse JSON data: " + error.message,
         };
@@ -63,7 +60,6 @@ export function extractFormatAndData(text) {
       extractedData,
     };
   } catch (error) {
-    console.error("Error extracting format and data:", error);
     return {
       cleanedText: text,
       formatType: null,
@@ -131,12 +127,10 @@ export function processMessage(message) {
 
       // If it's an object but doesn't match our expected structure
       processed.text = "Message format error: " + JSON.stringify(message);
-      console.warn("Unexpected message format:", message);
     }
 
     return processed;
   } catch (error) {
-    console.error("Error processing message:", error);
     return {
       text: typeof message === "string" ? message : "Error processing message",
       format: "text",

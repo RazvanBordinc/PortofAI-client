@@ -83,7 +83,6 @@ export function useConversationHistory() {
               formattedMessage.content = processCompletedResponse(msg.content);
             }
           } catch (error) {
-            console.error("Error processing AI message content:", error);
             // Fallback to plain text if processing fails
             formattedMessage.content = {
               text: msg.content,
@@ -100,7 +99,6 @@ export function useConversationHistory() {
       saveToCache(formattedMessages);
       return formattedMessages;
     } catch (error) {
-      console.error("Error fetching conversation history:", error);
       setError("Failed to load conversation history. Please try again later.");
       return [];
     } finally {
@@ -140,7 +138,6 @@ export function useConversationHistory() {
       clearCache();
       return true;
     } catch (error) {
-      console.error("Error clearing conversation history:", error);
       setError("Failed to clear conversation history. Please try again later.");
       return false;
     } finally {
@@ -154,7 +151,6 @@ export function useConversationHistory() {
       localStorage.setItem("chat-history", JSON.stringify(messages));
       localStorage.setItem("chat-history-timestamp", Date.now().toString());
     } catch (error) {
-      console.error("Error saving history to cache:", error);
     }
   };
 
@@ -179,7 +175,6 @@ export function useConversationHistory() {
       const cached = localStorage.getItem("chat-history");
       return cached ? JSON.parse(cached) : null;
     } catch (error) {
-      console.error("Error loading history from cache:", error);
       return null;
     }
   };
@@ -190,7 +185,6 @@ export function useConversationHistory() {
       localStorage.removeItem("chat-history");
       localStorage.removeItem("chat-history-timestamp");
     } catch (error) {
-      console.error("Error clearing history cache:", error);
     }
   };
 

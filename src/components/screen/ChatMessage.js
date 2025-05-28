@@ -145,7 +145,6 @@ export default function ChatMessage({ message }) {
             data = JSON.parse(cleanJsonString(jsonStr));
             debugLog("Successfully parsed JSON data");
           } catch (error) {
-            console.error("JSON parsing error in content:", error);
             debugLog("JSON parsing failed:", error.message);
 
             // Special handling for contact data parsing errors
@@ -227,7 +226,6 @@ export default function ChatMessage({ message }) {
       debugLog("Message processing complete:", processedMsg.id);
       setProcessedMessage(processedMsg);
     } catch (error) {
-      console.error("Error in processMessage:", error);
       setParseError(error.message);
       debugLog("Error during processing:", error.message);
 

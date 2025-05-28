@@ -12,13 +12,6 @@ export default function StreamingBubble({ message }) {
   const [hasRichContent, setHasRichContent] = useState(false);
   const contentRef = useRef("");
 
-  console.log(
-    "StreamingBubble rendering with:",
-    message.id,
-    message.isStreaming,
-    typeof message.content,
-    message.content
-  );
 
   // Helper function to clean response text - SIMPLIFIED
   const cleanResponseText = (text) => {
@@ -65,30 +58,19 @@ export default function StreamingBubble({ message }) {
   // Update the displayed content when the message changes
   useEffect(() => {
     let newContent = "";
-    console.log("StreamingBubble content update triggered:", message.content);
 
     // Extract the content properly based on its type
     if (typeof message.content === "string") {
       newContent = message.content;
-      console.log("Content is string:", newContent.substring(0, 30) + "...");
     } else if (message.content && typeof message.content.text === "string") {
       newContent = message.content.text;
-      console.log(
-        "Content is object with text:",
-        newContent.substring(0, 30) + "..."
-      );
     } else if (message.content) {
       // Try to get string representation
       newContent = String(message.content);
-      console.log(
-        "Content converted to string:",
-        newContent.substring(0, 30) + "..."
-      );
     }
 
     // Only update if content actually changed
     if (newContent !== contentRef.current) {
-      console.log("Content changed, updating state");
       contentRef.current = newContent;
       setCurrentContent(newContent);
       checkForRichContent(newContent);
@@ -104,15 +86,12 @@ export default function StreamingBubble({ message }) {
 
   // Detect when streaming has stopped
   useEffect(() => {
-    console.log("Streaming status check:", message.isStreaming, isStreaming);
     if (message.isStreaming === false && isStreaming === true) {
-      console.log("Streaming ended, cleaning content");
       setIsStreaming(false);
       setCursorVisible(false);
 
       const finalCleaned = cleanResponseText(currentContent);
       if (finalCleaned !== currentContent) {
-        console.log("Cleaned content after streaming");
         setCurrentContent(finalCleaned);
       }
     }
@@ -160,10 +139,6 @@ export default function StreamingBubble({ message }) {
 
   return (
     <div className="flex justify-start">
-      {console.log(
-        "Rendering content:",
-        currentContent.substring(0, 30) + "..."
-      )}
       {/* Avatar for AI - no animation */}
       <div className="self-end mb-2 mr-2">
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-500/10 dark:bg-indigo-600/20">

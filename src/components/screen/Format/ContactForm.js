@@ -30,7 +30,6 @@ export default function ContactForm({ data }) {
   // Process and validate data when component mounts
   useEffect(() => {
     try {
-      console.log("Contact form initializing with data:", data);
 
       // Handle error state from parent
       if (!data || (data && data.error)) {
@@ -50,7 +49,6 @@ export default function ContactForm({ data }) {
       // Use provided data
       setFormData(data);
     } catch (err) {
-      console.error("Error setting up contact form:", err);
       setDataError("Failed to initialize contact form: " + err.message);
 
       // Set default data for error state
@@ -69,7 +67,6 @@ export default function ContactForm({ data }) {
         (data.socialLinks === undefined || Array.isArray(data.socialLinks))
       );
     } catch (err) {
-      console.error("Error validating contact data:", err);
       return false;
     }
   };
@@ -107,7 +104,6 @@ export default function ContactForm({ data }) {
           partialData.emailSubject || "Contact from Portfolio Website",
       };
     } catch (err) {
-      console.error("Error creating default form data:", err);
       // Provide absolute fallback with hardcoded values
       return {
         title: "Contact Form",
@@ -186,7 +182,6 @@ export default function ContactForm({ data }) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-      console.log("Sending contact form submission to API");
 
       const response = await fetch(`${apiUrl}/api/contact`, {
         method: "POST",
@@ -214,13 +209,11 @@ export default function ContactForm({ data }) {
 
       // If there's a note in the response, log it
       if (responseData.note) {
-        console.log("Server note:", responseData.note);
       }
 
       // Hide success banner after 5s
       setTimeout(() => setSubmitted(false), 5000);
     } catch (err) {
-      console.error("Contact form submission error:", err);
 
       if (err.name === "AbortError") {
         const directEmailInfo =
@@ -257,7 +250,6 @@ export default function ContactForm({ data }) {
           return <ExternalLink size={16} />;
       }
     } catch (err) {
-      console.error("Error getting social icon:", err);
       return <ExternalLink size={16} />;
     }
   };

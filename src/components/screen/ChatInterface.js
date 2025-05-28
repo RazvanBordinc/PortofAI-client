@@ -141,7 +141,6 @@ export default function ChatInterface() {
         if (sentences[i] === sentences[j]) {
           // Found duplicate - remove it by setting to empty
           sentences[j] = "";
-          console.log("Removed duplicate sentence:", sentence.substring(0, 30));
         }
       }
     }
@@ -166,7 +165,6 @@ export default function ChatInterface() {
           // Keep the first occurrence, remove duplicates
           return offset === cleanedText.indexOf(point) ? match : "";
         });
-        console.log("Removed duplicate bullet point");
       }
     }
 
@@ -199,14 +197,12 @@ export default function ChatInterface() {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        console.error(`Error response: ${response.status}`);
-        throw new Error(`Error: ${response.status}`);
+          throw new Error(`Error: ${response.status}`);
       }
 
       const data = await response.json();
       setRemaining(data.remaining);
     } catch (error) {
-      console.warn("Error fetching remaining requests:", error.message);
       // Set a default remaining value on error
       setRemaining(15);
     }
@@ -365,7 +361,6 @@ export default function ChatInterface() {
         done = readerDone;
 
         if (done) {
-          console.log("Stream completed");
           setIsAiTyping(false);
           setIsLoading(false);
           break;
@@ -373,7 +368,6 @@ export default function ChatInterface() {
 
         // Decode this chunk
         const chunk = decoder.decode(value, { stream: true });
-        console.log("Received chunk length:", chunk.length);
 
         // Process SSE format
         const lines = chunk.split("\n\n");
@@ -384,7 +378,6 @@ export default function ChatInterface() {
           try {
             // Check if it's a heartbeat comment
             if (line.startsWith(":")) {
-              console.log("Heartbeat received");
               continue;
             }
 
@@ -397,21 +390,13 @@ export default function ChatInterface() {
             if (!dataMatch) continue;
 
             const dataContent = dataMatch[1];
-            console.log(
-              "Event:",
-              eventName,
-              "Data length:",
-              dataContent.length
-            );
 
             // Handle different event types
             if (eventName === "done") {
-              console.log("Received done event, parsing completion data");
               try {
                 const completionData = JSON.parse(dataContent);
 
                 if (completionData.done) {
-                  console.log("Done event confirmed, updating message state");
                   // IMPORTANT: Don't update content again, just mark as done
                   setMessages((prev) => {
                     const updated = prev.map((msg) =>
@@ -435,7 +420,6 @@ export default function ChatInterface() {
                   setIsLoading(false);
                 }
               } catch (error) {
-                console.error("Error parsing completion data:", error);
                 setIsAiTyping(false);
                 setIsLoading(false);
               }
@@ -445,16 +429,11 @@ export default function ChatInterface() {
                 .replace(/\\n/g, "\n")
                 .replace(/\\r/g, "\r");
 
-              console.log(
-                "Message chunk received:",
-                textChunk.substring(0, 30) + "..."
-              );
 
               // Add to accumulated text
               if (!accumulatedText.endsWith(textChunk)) {
                 accumulatedText += textChunk;
               } else {
-                console.log("Duplicate chunk detected, skipping");
               }
               accumulatedText = removeDuplicatedSentences(accumulatedText);
               // Check for contact information patterns
@@ -467,7 +446,6 @@ export default function ChatInterface() {
                 accumulatedText.includes("razvan.bordinc@yahoo.com");
 
               if (containsContactInfo && !isContactForm) {
-                console.log("Contact form detected, updating format");
                 isContactForm = true;
 
                 // Force format to contact form
@@ -490,10 +468,6 @@ export default function ChatInterface() {
                 );
               } else {
                 // CRITICAL FIX: Always update messages - this was missing!
-                console.log(
-                  "Updating message with new content, length:",
-                  accumulatedText.length
-                );
 
                 // Regular text update - must happen for all messages
                 setMessages((prev) =>
@@ -520,7 +494,6 @@ export default function ChatInterface() {
               }
             }
           } catch (error) {
-            console.error("Error processing SSE line:", error);
           }
         }
       }
@@ -532,7 +505,6 @@ export default function ChatInterface() {
       // Update remaining requests count
       fetchRemainingRequests();
     } catch (error) {
-      console.error("Error sending message:", error);
 
       // Clear loading states
       setIsAiTyping(false);
@@ -589,10 +561,6 @@ export default function ChatInterface() {
         seen.add(sentence);
         uniqueSentences.push(sentence);
       } else {
-        console.log(
-          "Removed duplicate sentence:",
-          sentence.substring(0, 20) + "..."
-        );
       }
     }
 
